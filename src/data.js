@@ -136,8 +136,8 @@ export const MISSIONS = {
 // Канонический порядок (по географии). В партию попадает RUN_SIZE поручений из тех, что есть в MISSIONS.
 export const ORDER = ['arkasha', 'nikita', 'pasha', 'dima', 'max', 'sanya', 'misha', 'kos', 'artem', 'geisler'].filter((id) => MISSIONS[id]);
 export const RUN_SIZE = 6;
-// Версия правил для общей таблицы: 1 — шесть фиксированных поручений, 2 — шесть из десяти.
-export const SCORE_VER = 2;
+// Версия правил для общей таблицы: 1 — шесть фиксированных поручений, 2 — шесть из десяти, 3 — добавлен бонус за разрушения.
+export const SCORE_VER = 3;
 export const EXCUSES = { igor: 'Я за рулем… не воюю', max: 'Я пас, занят', arkasha: 'Дай 10 мин', geisler: 'Я даже включать боюсь', pasha: 'Не собираюсь', nikita: 'Я не играл не разу', kos: 'Надо скачать', artem: 'Го в вс', sanya: 'Как будет свободное время )', misha: 'Времени тупо нет (' };
 
 // [секунда от старта, кто, текст | {voice}]

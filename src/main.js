@@ -53,7 +53,7 @@ const NC = { nikita: '#aab3cc', dima: '#8fa6dd', igor: '#f0f0f0' };
 
 // ---------- state ----------
 const S = { state: 'boot', t: 0, time: 0, left: 360, score: 0, pid: null, mode: 'car', car: null, cars: [], mods: [], npcs: [], sayQ: [], sayT: 0, mission: null, queue: [], nextM: 6, wanted: 0, caught: 0, busy: 0, modal: false,
-  flags: {}, stats: { missions: 0, total: 0, cards: 0, feathers: 0, orchids: 0, bans: 0, stolen: 0 }, amb: 0, cd: 0, acc: 1, lastBump: 0, shake: 0, hudT: 0, placeT: 0, lastPlace: null };
+  flags: {}, stats: { missions: 0, total: 0, cards: 0, feathers: 0, orchids: 0, bans: 0, stolen: 0, smashed: 0 }, amb: 0, cd: 0, acc: 1, lastBump: 0, shake: 0, hudT: 0, placeT: 0, lastPlace: null };
 const P = { x: 0, z: 0, y: 0, vx: 0, vz: 0, layer: 0, h: 0, vy: 0, walk: 0 };
 const cam = { yaw: 0, off: 0, pitch: 0.26, manual: 9, pos: new THREE.Vector3(), init: false };
 let rak = null, pname = '';
@@ -172,7 +172,7 @@ colMesh.frustumCulled = false; scene.add(colMesh);
   const cc = [new THREE.Color(3.0, 2.1, 0.5), new THREE.Color(1.6, 2.4, 3.0), new THREE.Color(3.0, 0.7, 2.2)];
   COL.forEach((c, i) => colMesh.setColorAt(i, cc[c.type]));
 })();
-const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _v = new THREE.Vector3(), _sc = new THREE.Vector3(), _ax = new THREE.Vector3(0, 1, 0);
+const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _v = new THREE.Vector3(), _sc = new THREE.Vector3(), _ax = new THREE.Vector3(0, 1, 0), _eu = new THREE.Euler();
 const CG = [[1.5, 1.0, 0.25], [0.7, 1.1, 1.5], [1.5, 0.3, 1.1]];
 function updateCollectibles(play) {
   const t = S.time, rr = S.mode === 'car' ? 3.4 : 2.1;
@@ -196,6 +196,35 @@ function collect(c) {
   } else if (c.type === 1) { st.feathers++; addScore(120); if (st.feathers === 6) sayQ([['igor', 'Самое пиздец что я собрал все перья цапель'], ['geisler', 'А зачем второй раз?)😅']]); }
   else { st.orchids++; addScore(120); if (st.orchids === 6) sayQ([['geisler', 'Ты их уже находил, но просто не помнишь куда сложил)']]); }
   $('coll').textContent = `🃏 ${st.cards % 144 || (st.cards ? 144 : 0)}/144${S.acc > 1 ? ' (акк №' + S.acc + ')' : ''} · 🪶 ${st.feathers}/6 · 🌸 ${st.orchids}/6`;
+}
+
+// ---------- разрушаемая мелочь: снеговики, конусы, урны (декорации, на езду не влияют) ----------
+const PROPS = [], propMesh = [];
+(function buildProps() {
+  const R = rng(390), white = [0.86, 0.9, 0.97], sph = new THREE.SphereGeometry(1, 8, 6), cone = new THREE.ConeGeometry(1, 1, 8), cyl = new THREE.CylinderGeometry(1, 1, 1, 8);
+  const sm = new Batch(); sm.add(sph, M(0, 0.45, 0, 0.5, 0.45, 0.5), white); sm.add(sph, M(0, 1.05, 0, 0.36, 0.33, 0.36), white); sm.add(sph, M(0, 1.52, 0, 0.25, 0.24, 0.25), white); sm.add(cone, M(0, 1.52, 0.3, 0.05, 0.26, 0.05, 0, Math.PI / 2), [0.9, 0.35, 0.05]); sm.add(cyl, M(0, 1.8, 0, 0.2, 0.2, 0.2), [0.5, 0.06, 0.06]);
+  const cn = new Batch(); cn.add(cone, M(0, 0.4, 0, 0.26, 0.75, 0.26), [0.95, 0.3, 0.04]); cn.add(cyl, M(0, 0.45, 0, 0.15, 0.1, 0.15), white); cn.add(cyl, M(0, 0.04, 0, 0.34, 0.07, 0.34), [0.1, 0.1, 0.12]);
+  const bn = new Batch(); bn.add(cyl, M(0, 0.45, 0, 0.3, 0.9, 0.3), [0.12, 0.2, 0.16]); bn.add(sph, M(0, 0.93, 0, 0.32, 0.14, 0.32), white);
+  const add = (x, z, t) => { if (!world.col.near(x, z, 0.7)) PROPS.push({ x, z, y: 0, x0: x, z0: z, vx: 0, vy: 0, vz: 0, a: R() * 6, sp: 0, t, st: 0, i: 0 }); };
+  for (const b of world.blocks) { if (b.type === 'zone') continue; for (let i = 0; i < 2; i++) add(b.x0 + 2 + R() * (b.x1 - b.x0 - 4), R() < 0.5 ? b.z0 + 1.6 : b.z1 - 1.6, 0); }
+  for (const [x, z, ns] of [[70, -30, 1], [210, 30, 1], [-140, -90, 1], [-70, 90, 1], [175, 60, 0], [-175, -60, 0], [105, 0, 0], [-245, 120, 0], [280, 90, 1], [-210, 30, 1]]) for (let k = 0; k < 5; k++) add(ns ? x + 1.2 + k * 1.3 : x - 3 + k * 1.5, ns ? z - 3 + k * 1.5 : z + 1.2 + k * 1.3, 1);
+  world.lamps.forEach((L, i) => { if (i % 4 === 0 && !L.bridge && L.h > 6) add(L.x + (L.x > L.hx ? 0.9 : -0.9), L.z + (L.z > L.hz ? 0.9 : L.z < L.hz ? -0.9 : 0.6), 2); });
+  [sm, cn, bn].forEach((bt, t) => { const n = PROPS.filter(p => p.t === t).length, im = new THREE.InstancedMesh(bt.build(), world.mPL, Math.max(1, n)); im.frustumCulled = false; im.castShadow = true; scene.add(im); propMesh.push(im); let k = 0; for (const p of PROPS) if (p.t === t) { p.i = k++; setProp(p); } im.instanceMatrix.needsUpdate = true; });
+})();
+function setProp(p) { _q.setFromEuler(_eu.set(p.sp ? p.a * 1.3 : 0, p.a, p.sp ? p.a * 0.8 : 0)); _v.set(p.x, p.y + (isRoad(p.x0, p.z0) ? 0 : 0.15), p.z); _sc.setScalar(p.st === 2 ? 0.0001 : 1); _m4.compose(_v, _q, _sc); propMesh[p.t].setMatrixAt(p.i, _m4); }
+function updateProps(dt) {
+  const car = S.mode === 'car' ? S.car : null, sp = car ? car.speed : 0; let dirty = 0;
+  for (const p of PROPS) {
+    if (p.st === 0) {
+      if (!car || sp < 3 || Math.abs(p.x - P.x) > 2.1 || Math.abs(p.z - P.z) > 2.1 || Math.abs(P.y) > 1) continue;
+      p.st = 1; p.vx = car.e.vx * 0.7 + (Math.random() - 0.5) * 4; p.vz = car.e.vz * 0.7 + (Math.random() - 0.5) * 4; p.vy = 4 + sp * 0.28; p.sp = 6 + Math.random() * 8;
+      S.stats.smashed++; addScore(15); audio.play('crash'); spray.burst(p.x, 0.8, p.z, 16, 6, 0.6, 0.7, 0.75, 0.9);
+      if (S.stats.smashed === 1) sayQ([['max', 'Там самый кайф в разрушениях, они оч реалистичны'], ['sys', 'BeamNG-бонус: +15 за каждый снесённый предмет']]);
+      if (S.stats.smashed === 10) trophy('beam'); if (S.stats.smashed % 10 === 0) showBig('BeamNG ×' + S.stats.smashed, '+' + S.stats.smashed * 15 + ' за разрушения');
+    }
+    if (p.st === 1) { p.vy -= 22 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.a += p.sp * dt; if (p.y < 0 && p.vy < 0) { p.st = 2; spray.burst(p.x, 0.3, p.z, 10, 3, 0.5, 0.6, 0.65, 0.8); } setProp(p); dirty |= 1 << p.t; }
+  }
+  for (let t = 0; t < 3; t++) if (dirty & (1 << t)) propMesh[t].instanceMatrix.needsUpdate = true;
 }
 
 // ---------- cars ----------
@@ -391,9 +420,10 @@ function updatePlayer(dt) {
     const gh = surface(P);
     if (P.vy > 0 || P.y > gh + 0.3) { P.vy -= 26 * dt; P.y += P.vy * dt; if (P.y <= gh) { P.y = gh; P.vy = 0; } } else P.y += (gh - P.y) * damp(14, dt);
     P.walk = clamp(Math.hypot(P.vx, P.vz) / 7, 0, 1);
-    rak.position.set(P.x, P.y + (P.layer === 0 && !isRoad(P.x, P.z) ? 0.15 : 0), P.z); rak.rotation.set(P.vy !== 0 ? S.time * 10 : 0, P.h, 0); animRak(rak, S.time, P.walk, false);
+    rak.position.set(P.x, P.y + (P.layer === 0 && !isRoad(P.x, P.z) ? 0.15 : 0), P.z); S.danceT = Math.max(0, (S.danceT || 0) - dt); if (S.danceT > 0) P.h += dt * 9;
+    rak.rotation.set(P.vy !== 0 ? S.time * 10 : 0, P.h, S.danceT > 0 ? Math.sin(S.time * 14) * 0.25 : 0); animRak(rak, S.time, S.danceT > 0 ? 1 : P.walk, S.danceT > 0);
     head.intensity += (0 - head.intensity) * damp(5, dt); snow.u.uHead.value = 0;
-    const near = nearestCar(5); prompt(near ? (isTouch ? 'Жми 🚗, чтобы сесть' + (near.ai ? ' (угон!)' : '') : 'E — сесть в машину' + (near.ai ? ' (угон!)' : '')) : '');
+    const near = nearestCar(5); prompt(near ? (isTouch ? 'Жми 🚗, чтобы сесть' + (near.ai ? ' (угон!)' : '') : 'E — сесть в машину' + (near.ai ? ' (угон!)' : '')) : (S.t < 200 && S.danceT <= 0 ? (isTouch ? '🦀 — танцевать' : 'E — танцевать') : ''));
     $('bAct').textContent = near ? '🚗' : '🦀';
   }
   // anomalies
@@ -416,7 +446,7 @@ function action() {
     S.mode = 'foot'; rak.visible = true; cam.yaw += cam.off; cam.off = 0; audio.play('door');
     if (!S.flags.exit && S.pid !== 'nikita') { S.flags.exit = 1; sayQ([['nikita', 'Че там делать надо?']]); }
   } else {
-    const c = nearestCar(5); if (!c) return;
+    const c = nearestCar(5); if (!c) { S.danceT = 2.4; audio.horn(S.pid); trophy('dance'); if (!S.flags.dance) { S.flags.dance = 1; sayQ([['nikita', 'диман, пока закапываемся)']]); } return; }
     if (c.ai) {
       c.ai = null; c.stun = 0; S.stats.stolen++; trophy('steal'); addScore(60); showBig('УГОН', '+60 · теперь ты как типы');
       if (S.stats.stolen === 1) sayQ([['sys', 'Сигналка орёт голосом Макса. Никто не слушает'], ['max', { voice: 23 }]]);
@@ -642,7 +672,7 @@ function updatePlay(dt) {
   updatePlayer(dt);
   for (const c of S.cars) if (c.ai && c.ai.type === 'traffic') driveTraffic(c, dt, P.x, P.z);
   dyn.begin();
-  updateWanted(dt); updateNPCs(dt); updateMission(dt); updateCollectibles(true); carGlows();
+  updateWanted(dt); updateNPCs(dt); updateMission(dt); updateCollectibles(true); updateProps(dt); carGlows();
   if (world.fire) { const f = world.fire, fl = 0.7 + Math.random() * 0.5; dyn.add(f[0], f[1], f[2], 4.5 * fl, 2.4 * fl, 0.9 * fl, 0.2); if (Math.random() < 0.3) spray.emit(f[0], f[1], f[2], (Math.random() - 0.5) * 1.5, 3 + Math.random() * 3, (Math.random() - 0.5) * 1.5, 1.2, 2.5, 0.9, 0.2); }
   if (S.mission && S.mission.id === 'kos' && S.mission.si <= 1) { const a = POI.artifact; dyn.add(a[0], 1.4 + Math.sin(S.time * 3) * 0.2, a[1], 5, 2.6, 1.3, 0.2); }
   for (const tw of world.towers) dyn.add(tw.x, tw.h + 0.6, tw.z, 4, (S.time * 2 | 0) % 2 ? 2.2 : 0.3, 0.2, 0.15);
@@ -714,7 +744,7 @@ function finale() {
   const run = (S.run || []).map((id) => (S.done[id] || '—') + ' ' + MISSIONS[id].title).join(' · ');
   const rest = ORDER.filter((id) => id !== S.pid && !(S.run || []).includes(id)).map((id) => BY_ID[id].name).join(', ');
   $('fstats').innerHTML = 'Играл за: <b>' + esc(pname) + '</b> · поручений ' + st.missions + '/' + st.total + '<br>' + esc(run)
-    + '<br>карточки ' + st.cards + '/144 · перья ' + st.feathers + '/6 · орхидеи ' + st.orchids + '/6 · угонов ' + st.stolen + ' · банов ' + st.bans
+    + '<br>карточки ' + st.cards + '/144 · перья ' + st.feathers + '/6 · орхидеи ' + st.orchids + '/6 · угонов ' + st.stolen + ' · банов ' + st.bans + ' · снесено ' + st.smashed
     + (tro.length ? '<br>🦀 Трофеи (' + tro.length + '): ' + esc(tro.join(' · ')) : '')
     + (rest ? '<br><span class="nx">В этот раз не выпали поручения: ' + esc(rest) + '. Сыграй ещё.</span>' : '')
     + (best ? '<br>прошлый рекорд на этом устройстве: ' + best : '');
