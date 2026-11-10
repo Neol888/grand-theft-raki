@@ -1,0 +1,13 @@
+{
+  "name": "grand-theft-raki",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build": "node build.js",
+    "dev": "esbuild src/main.js --bundle --format=iife --target=es2019 --outfile=game.js --servedir=. --serve=5173"
+  },
+  "devDependencies": {
+    "esbuild": "0.21.5",
+    "three": "0.160.0"
+  }
+}
