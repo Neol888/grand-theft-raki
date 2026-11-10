@@ -520,7 +520,8 @@ function updateCamera(dt) {
   let k = 1;
   for (let i = 1; i <= 7; i++) { const f = i / 7; if (world.col.blocked(tx - fx * dist * cp * f, tz - fz * dist * cp * f)) { k = Math.max(0.16, (i - 1) / 7); break; } }
   const cx = tx - fx * dist * cp * k, cz = tz - fz * dist * cp * k, cy = ty + 0.7 + dist * spp * (0.55 + 0.45 * k) + (1 - k) * 5;
-  if (!cam.init) { cam.pos.set(cx, cy, cz); cam.init = true; } else { const a = damp(10, dt); cam.pos.x += (cx - cam.pos.x) * a; cam.pos.y += (cy - cam.pos.y) * a; cam.pos.z += (cz - cam.pos.z) * a; }
+  if (S.t < 2.8) { const k = 1 - Math.pow(1 - S.t / 2.8, 3), o = 1 - k; cam.pos.set(cx - fx * 46 * o, cy + 34 * o, cz - fz * 46 * o); cam.init = true; }
+  else if (!cam.init) { cam.pos.set(cx, cy, cz); cam.init = true; } else { const a = damp(10, dt); cam.pos.x += (cx - cam.pos.x) * a; cam.pos.y += (cy - cam.pos.y) * a; cam.pos.z += (cz - cam.pos.z) * a; }
   cam.pos.y = Math.max(cam.pos.y, bankH(Math.abs(cam.pos.x)) + 0.7);
   S.shake = Math.max(0, S.shake - dt * 3);
   camera.position.set(cam.pos.x + (Math.random() - 0.5) * S.shake * 0.5, cam.pos.y + (Math.random() - 0.5) * S.shake * 0.5, cam.pos.z);
