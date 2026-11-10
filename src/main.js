@@ -227,6 +227,7 @@ addEventListener('keyup', (e) => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 addEventListener('contextmenu', (e) => e.preventDefault());
 addEventListener('gesturestart', (e) => e.preventDefault());
+document.addEventListener('touchmove', (e) => { if (!(e.target.closest && e.target.closest('#plog,#final'))) e.preventDefault(); }, { passive: false });
 document.addEventListener('visibilitychange', () => { const c = audio.ctx; if (!c) return; if (document.hidden) c.suspend(); else c.resume(); last = performance.now(); });
 canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); setTimeout(() => location.reload(), 400); });
 const stickEl = $('stick'), knob = $('knob');
