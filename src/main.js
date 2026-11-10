@@ -6,7 +6,7 @@ import { makeRak, animRak, nameSprite } from './raki.js';
 import { Car, NODES, nearestNode, placeTraffic, driveTraffic } from './cars.js';
 import { Snow, Spray, Tracks, DynGlow, Marker } from './fx.js';
 import { Audio } from './audio.js';
-import { RAKI, BY_ID, MISSIONS, ORDER, EXCUSES, AMBIENT, COUNTDOWN, FINALE, RANKS, QUIZ, TIPS, ENDING } from './data.js';
+import { RAKI, BY_ID, MISSIONS, ORDER, RUN_SIZE, SCORE_VER, EXCUSES, AMBIENT, COUNTDOWN, FINALE, RANKS, QUIZ, TIPS, ENDING } from './data.js';
 
 const $ = (id) => document.getElementById(id);
 const isTouch = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || 'ontouchstart' in window;
@@ -284,7 +284,17 @@ function startGame() {
     }
     const car = new Car(scene, POI.start[0], POI.start[1], Math.PI, new THREE.Color(r.css).multiplyScalar(0.8).getHex(), 'sedan'); S.cars.push(car); S.car = car; S.mode = 'car'; car.g.add(beams);
     P.x = car.e.x; P.z = car.e.z; cam.yaw = Math.PI; cam.init = false;
-    S.queue = ORDER.filter(id => id !== S.pid); S.stats.total = S.queue.length;
+    // шесть поручений из доступных: сначала те, что на этом устройстве выпадали реже
+    let pool = ORDER.filter(id => id !== S.pid);
+    if (QS.has('m')) pool = QS.get('m').split(',').filter(id => MISSIONS[id] && id !== S.pid);
+    else {
+      let seen = {}; try { seen = JSON.parse(localStorage.getItem('gtr_seen') || '{}') || {}; } catch (e) { seen = {}; }
+      const pick = pool.map(id => [id, (seen[id] || 0) + Math.random()]).sort((a, b) => a[1] - b[1]).slice(0, RUN_SIZE).map(a => a[0]);
+      pool = pool.filter(id => pick.includes(id));
+      for (const id of pool) seen[id] = (seen[id] || 0) + 1;
+      try { localStorage.setItem('gtr_seen', JSON.stringify(seen)); } catch (e) { /* ignore */ }
+    }
+    S.queue = pool; S.run = pool.slice(); S.stats.total = pool.length;
     S.state = 'play'; S.t = 0; grace = 4; bad = 0; applyQuality(); $('fade').style.opacity = 0;
     showBig('23:54', 'До релиза шесть минут');
     prompt(isTouch ? 'Левый палец — руль и газ · правый — камера' : 'WASD — ехать · Пробел — ручник · E — выйти из машины', 7);
@@ -443,18 +453,57 @@ function nextStep() {
   const M = S.mission; M.si++;
   if (M.si >= M.steps.length) return finishMission();
   const st = M.steps[M.si];
-  if (st.choice) { M.pts = []; openChoice(st.choice, (op) => { if (op.say) sayQ(op.say); if (op.bonus) M.bonus += op.bonus; if (op.flag) S.flags[op.flag] = 1; if (op.add) M.steps.splice(M.si + 1, 0, ...op.add); nextStep(); }); return; }
-  M.pts = resolvePts(st); $('objtext').textContent = st.text; audio.play('step');
+  if (st.enter) sayQ(st.enter);
+  if (st.timer) M.deadline = S.t + st.timer;
+  M.prog = 0;
+  if (st.choice) { M.pts = []; openChoice(st.choice, (op) => { if (S.mission !== M) return; if (op.say) sayQ(op.say); if (op.bonus) M.bonus += op.bonus; if (op.flag) S.flags[op.flag] = 1; if (op.add) M.steps.splice(M.si + 1, 0, ...op.add); nextStep(); }); return; }
+  if (st.duel) { M.pts = []; runDuel(M); return; }
+  M.pts = st.pts || st.raki ? resolvePts(st) : []; $('objtext').textContent = st.text; audio.play('step');
+}
+// «игра в игре» у Никиты: три вида хода, AI бьёт в ответ
+function runDuel(M) {
+  const d = { me: 5, ai: 6, kids: true, round: 1 };
+  const turn = () => {
+    const opts = [{ label: 'Атаковать клешнёй', k: 'a' }, { label: 'Закопаться', k: 'd' }]; if (d.kids) opts.push({ label: 'Позвать детей из Tekken', k: 'k' });
+    openChoice({ title: 'Игра Никиты · ход ' + d.round, text: 'Пошаговая стратегия, 4 расы, AI на GPT-6-Luna. Ты: ' + '🦀'.repeat(Math.max(0, d.me)) + ' · AI: ' + '🤖'.repeat(Math.max(0, d.ai)) + '. Закапываться безопасно, но время идёт.', opts }, (op) => {
+      if (S.mission !== M) return;
+      let hit = 3;
+      if (op.k === 'a') d.ai -= 2; else if (op.k === 'd') { d.ai -= 1; hit = 0; } else { d.ai -= 3; d.kids = false; hit = 1; }
+      if (d.ai > 0) d.me -= hit;
+      d.round++;
+      if (d.ai <= 0) { M.bonus += Math.max(0, 5 - d.round) * 60; say('sys', 'AI повержен. Ходов: ' + (d.round - 1)); nextStep(); }
+      else if (d.me <= 0) { M.lost = true; say('sys', 'AI сделал тебя, как маленького'); nextStep(); }
+      else turn();
+    });
+  };
+  turn();
+}
+function endMission() {
+  S.mission = null; S.nextM = S.t + 4.5; S.target = null; markers.forEach(m => m.hide());
+  $('objtext').textContent = S.queue.length ? 'Жди сообщений в чате' : 'Поручения кончились. Собирай карточки Игоря'; $('dist').textContent = '';
 }
 function finishMission() {
-  const M = S.mission, tb = Math.max(0, Math.round((M.def.par - (S.t - M.t0)) * 8)), total = M.def.reward + M.bonus + tb;
-  addScore(total); S.stats.missions++; showBig('✔ ' + M.def.title, `+${total}` + (tb ? ` · за скорость +${tb}` : '')); audio.play('win'); sayQ(M.def.outro);
-  S.mission = null; S.nextM = S.t + 4.5; markers.forEach(m => m.hide());
-  $('objtext').textContent = S.queue.length ? 'Жди сообщений в чате' : 'Поручения кончились. Собирай карточки Игоря'; $('dist').textContent = '';
+  const M = S.mission, tb = M.lost ? 0 : Math.max(0, Math.round((M.def.par - (S.t - M.t0)) * 8)), total = Math.round(M.def.reward * (M.lost ? 0.4 : 1)) + M.bonus + tb;
+  addScore(total); S.stats.missions++; showBig((M.lost ? '≈ ' : '✔ ') + M.def.title, '+' + total + (tb ? ' · за скорость +' + tb : '')); audio.play('win'); sayQ(M.lost && M.def.outroLost ? M.def.outroLost : M.def.outro);
+  endMission();
+}
+function failMission() {
+  const M = S.mission, r = M.def.failReward || 150;
+  addScore(r); showBig('✖ ' + M.def.title, 'не успел · +' + r); audio.play('bad'); sayQ(M.def.fail || []);
+  endMission();
 }
 function updateMission(dt) {
   if (!S.mission) { if (S.queue.length && S.t > S.nextM && !S.sayQ.length) startMission(S.queue.shift()); return; }
-  const M = S.mission, st = M.steps[M.si]; if (!st || st.choice) return;
+  const M = S.mission, st = M.steps[M.si]; if (!st) return;
+  if (M.deadline && S.t > M.deadline && !S.modal) return failMission();
+  if (st.choice || st.duel) return;
+  if (st.slow) { // терпение: ехать медленно
+    const sp = S.mode === 'car' ? S.car.speed : 99;
+    if (sp > 1 && sp < 7) M.prog += dt; else if (sp >= 7) M.prog = Math.max(0, M.prog - dt * 1.5);
+    markers.forEach(mk => mk.hide()); S.target = null;
+    if (M.prog >= st.slow) { if (st.say) sayQ(st.say); if (st.big) showBig(st.big[0], st.big[1]); nextStep(); }
+    return;
+  }
   let left = 0, bd = 1e9, bp = null, mi = 0;
   for (const p of M.pts) {
     if (p.done) continue; const d = Math.hypot(P.x - p.x, P.z - p.z);
@@ -470,7 +519,7 @@ function updateMission(dt) {
     if (mi < 3) { const e = { x: p.x, z: p.z, y: 0 }; markers[mi++].set(p.x, surface(e), p.z, st.foot ? 0x7dff5d : 0xffc83d); }
   }
   for (; mi < 3; mi++) markers[mi].hide();
-  if (!left) { if (st.say) sayQ(st.say); if (st.wanted) startWanted(st.wanted); nextStep(); return; }
+  if (!left) { if (st.say) sayQ(st.say); if (st.big) showBig(st.big[0], st.big[1]); if (st.wanted) startWanted(st.wanted); nextStep(); return; }
   S.target = bp; S.targetD = bd;
 }
 
@@ -500,9 +549,15 @@ function updateHUD(dt) {
   }
   S.hudT -= dt; if (S.hudT > 0) return; S.hudT = 0.1;
   drawMap();
-  if (S.mission && S.target && S.mission.pts.length) {
-    $('dist').textContent = '· ' + Math.round(S.targetD) + ' м';
-    const rel = angDiff(cam.yaw + (S.mode === 'car' ? cam.off : 0), Math.atan2(S.target.x - P.x, S.target.z - P.z)); $('arrow').style.transform = `rotate(${-rel}rad)`;
+  if (S.mission) {
+    const M = S.mission, st = M.steps[M.si]; let t = '';
+    if (st && st.slow) t = '· терпение ' + Math.min(100, Math.round(100 * M.prog / st.slow)) + '% · ' + Math.round(S.car.speed * 3.6) + ' км/ч';
+    else if (S.target && M.pts.length) {
+      t = '· ' + Math.round(S.targetD) + ' м';
+      const rel = angDiff(cam.yaw + (S.mode === 'car' ? cam.off : 0), Math.atan2(S.target.x - P.x, S.target.z - P.z)); $('arrow').style.transform = 'rotate(' + (-rel) + 'rad)';
+    }
+    if (M.deadline) t += ' · ⏱ ' + Math.max(0, Math.ceil(M.deadline - S.t)) + ' с';
+    $('dist').textContent = t;
   }
   S.placeT -= 0.1;
   for (const L of LANDMARKS) if (Math.hypot(P.x - L.x, P.z - L.z) < L.r && S.lastPlace !== L && S.placeT <= 0) { S.lastPlace = L; S.placeT = 6; const e = $('place'); e.textContent = L.name; e.style.opacity = 1; setTimeout(() => { e.style.opacity = 0; }, 3500); }
@@ -547,7 +602,7 @@ function updatePlay(dt) {
   dyn.end();
   // chat pacing
   S.sayT -= dt; if (S.sayQ.length && S.sayT <= 0) { const m = S.sayQ.shift(); say(m[0], m[1]); S.sayT = 1.15; }
-  while (S.amb < AMBIENT.length && AMBIENT[S.amb][0] <= S.t) { const a = AMBIENT[S.amb++]; if (!(a[1] === 'kos' && S.flags.witcher && a[2] === 'На Сергея столик') && !(S.flags.crash && a[0] === 288)) S.sayQ.push([a[1], a[2]]); }
+  while (S.amb < AMBIENT.length && AMBIENT[S.amb][0] <= S.t) { const a = AMBIENT[S.amb++]; if (!(a[1] === 'kos' && S.flags.witcher && a[2] === 'На Сергея столик') && !(S.flags.crash && a[0] === 288) && !(a[3] && S.run && S.run.includes(a[3]))) S.sayQ.push([a[1], a[2]]); }
   while (S.cd < COUNTDOWN.length && S.left <= COUNTDOWN[S.cd][0]) { const c = COUNTDOWN[S.cd++]; if (S.left > c[0] - 3) S.sayQ.push(['arkasha', c[1]]); }
   if (S.left < 150 && !S.flags.delay) { S.flags.delay = 1; S.left += 15; sayQ([['pasha', 'Перенесли!'], ['sys', 'Релиз перенесли на 15 секунд. +15 сек'], ['pasha', 'Ну обещают без переносов']]); showBig('ПЕРЕНОС', '+15 секунд'); }
   if (qlDropped && !qlSaid) { qlSaid = true; sayQ([['sanya', 'Пришлось оперативки докупить, чтобы графика норм была😅'], ['sys', 'Графика понижена: так плавнее']]); }
@@ -568,25 +623,27 @@ function lbReq(query, body) {
 }
 const lbDate = (iso) => { const d = new Date(iso); if (isNaN(d)) return ''; const p = (n) => String(n).padStart(2, '0'); return p(d.getDate()) + '.' + p(d.getMonth() + 1) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); };
 const LB_HEAD = '<div class="h">🏆 ТАБЛИЦА ЧАТА</div>';
-const lbLoad = () => lbReq('?select=rak,score,created_at&order=score.desc,created_at.desc&limit=100');
+const lbLoad = () => lbReq('?select=rak,score,created_at,ver&order=score.desc,created_at.desc&limit=150');
 // rows отсортированы по убыванию очков; mine = {rak, score} только что записанного забега
-function lbHTML(rows, mine, top) {
-  rows = rows.filter((r) => BY_ID[r.rak]);
+function lbHTML(all, mine, top) {
+  all = all.filter((r) => BY_ID[r.rak]);
+  const rows = all.filter((r) => (r.ver || 1) === SCORE_VER), old = all.filter((r) => (r.ver || 1) !== SCORE_VER);
   const mi = mine ? rows.findIndex((r) => r.rak === mine.rak && r.score === mine.score) : -1;
-  const row = (r, i) => '<div class="r' + (i === mi ? ' me' : '') + '"><span>' + (i + 1) + '.</span><img src="' + avatars[r.rak] + '" alt=""><b>' + BY_ID[r.rak].name + (i === mi ? ' · это ты' : '') + '</b><i>' + lbDate(r.created_at) + '</i><em>' + (+r.score || 0) + '</em></div>';
-  let h = LB_HEAD + '<div class="s">все забеги · лучшие сверху · всего ' + rows.length + (rows.length >= 100 ? '+' : '') + '</div>';
-  if (!rows.length) return h + '<div class="e">Пока пусто. Доиграй до полуночи — будешь первым.</div>';
-  h += rows.slice(0, top).map(row).join('');
+  const row = (r, i, o) => '<div class="r' + (i === mi && !o ? ' me' : '') + (o ? ' o' : '') + '"><span>' + (o ? '' : (i + 1) + '.') + '</span><img src="' + avatars[r.rak] + '" alt=""><b>' + BY_ID[r.rak].name + (i === mi && !o ? ' · это ты' : '') + '</b><i>' + lbDate(r.created_at) + '</i><em>' + (+r.score || 0) + '</em></div>';
+  let h = LB_HEAD + '<div class="s">все забеги · лучшие сверху · всего ' + rows.length + '</div>';
+  if (!rows.length) h += '<div class="e">Пока пусто. Доиграй до полуночи — будешь первым.</div>';
+  h += rows.slice(0, top).map((r, i) => row(r, i)).join('');
   if (mi >= top) h += '<div class="e">…</div>' + row(rows[mi], mi);
   if (rows.length === 1) h += '<div class="e">Пока тут один забег. Кидай ссылку в чат.</div>';
+  if (old.length) h += '<div class="s" style="margin-top:8px">прошлая версия игры (без новых поручений) · вне зачёта</div>' + old.slice(0, Math.max(2, top >> 2)).map((r, i) => row(r, i, true)).join('');
   return h;
 }
 function leaderboard() {
   // тестовые запуски (?debug, ?t, ?q) в общую таблицу не пишут
-  const st = S.stats, test = (QS.has('debug') || QS.has('t') || QS.has('q')) && !QS.has('lb'), el = $('flb'), sent = S.score > 0 && !test;
+  const st = S.stats, test = (QS.has('debug') || QS.has('t') || QS.has('q') || QS.has('m')) && !QS.has('lb'), el = $('flb'), sent = S.score > 0 && !test;
   const mine = sent ? { rak: S.pid, score: Math.min(S.score, 12000) } : null;
   el.classList.remove('hidden'); el.innerHTML = LB_HEAD + '<div class="e">Загружаю…</div>';
-  const send = sent ? lbReq('', { rak: mine.rak, score: mine.score, missions: Math.min(st.missions, 6), cards: Math.min(st.cards, 2000), bans: Math.min(st.bans, 99) }).catch(() => null) : Promise.resolve();
+  const send = sent ? lbReq('', { ver: SCORE_VER, rak: mine.rak, score: mine.score, missions: Math.min(st.missions, 6), cards: Math.min(st.cards, 2000), bans: Math.min(st.bans, 99) }).catch(() => null) : Promise.resolve();
   send.then(lbLoad).then((rows) => { el.innerHTML = lbHTML(rows, mine, 8); })
     .catch(() => { el.innerHTML = LB_HEAD + '<div class="e">Нет связи с сервером рекордов. Результат остался на этом устройстве.</div>'; });
 }
