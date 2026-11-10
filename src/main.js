@@ -828,7 +828,7 @@ function draw(dt) {
     const u = post.mFinal.uniforms; if (S.state !== 'final') u.uFlash.value = Math.max(0, u.uFlash.value - dt * 2);
     glowScale.value = rh / (2 * Math.tan(camera.fov * Math.PI / 360));
     world.update(dt, S.time, camera); snow.u.uTime.value = S.time; snow.u.uCam.value.copy(camera.position); spray.update(S.time); markers.forEach(m => m.update(S.time));
-    audio.tick(S.state === 'play' && S.mode === 'car' ? clamp(S.car.speed / 32, 0, 1) : 0, S.state === 'play' && S.mode === 'car' ? S.car.slip : 0, S.state === 'play' && S.mode === 'car', S.wanted > 0);
+    audio.tick(S.state === 'play' && S.mode === 'car' ? clamp(S.car.speed / 32, 0, 1) : 0, S.state === 'play' && S.mode === 'car' ? S.car.slip : 0, S.state === 'play' && S.mode === 'car', S.wanted > 0, S.car ? S.car.kind : 'sedan');
     post.render(scene, camera, S.time);
   }
 }

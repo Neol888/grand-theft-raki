@@ -78,6 +78,23 @@ export const THEMES = {
     l: { i: 'whistle', o: 1, bars: ['4...4.6.7...4...', '5...5.7.8...5...', '4...4.6.7.9.7...', '6...4...2.......'] } },
 };
 
+// Вторая часть каждой темы: своя прогрессия и мелодия. Форма — A A B A, длина части равна длине прогрессии A.
+const PARTB = {
+  arkasha: { prog: [3, 6, 2, [4, 'hmin']], bars: ['7...9...8.7.....', '6...8...7.6.....', '4...6...5.4.2...', '3.......4.6.....'] },
+  max: { prog: [3, 3, 1, 0], bars: ['a.a.9.a.....7.9.', 'a.a.9.a...b.a.9.', '8.8.7.8.....5.7.', '7.....5.4...2...'] },
+  dima: { prog: [3, 6, 2, [4, 'hmin']], bars: ['9---....8.7-....', '8---....7.6-....', '7---..9.b---....', '8---..7.6---....'] },
+  igor: { prog: [3, 3, 0, 0, 6, 6, 3, [4, 'hmin']], bars: ['3.....5.7...9...', '7...5.......3.5.', '4.....2.0...2...', '4-----......2.4.', '6---....8.6.4...', '6---........4.6.', '7.....5.3...5...', '4-------........'] },
+  geisler: { prog: [2, 6, 5, 2, 3, 0, [4, 'hmin'], 0], bars: ['9.....7.6...4...', '6.....4.2...0...'] },
+  pasha: { prog: [3, 3, 0, 0, 1, 4, 0, 0], bars: ['7---....9...', 'b---....9...', '9---....7...', '4-------....', '8---....6...', '4...6...8...', '7---....4...', '7-------....'] },
+  nikita: { prog: [3, 4, 2, 5], bars: ['7.7.9...b.9.7...', '8.8.9...b.9.8...', '6.6.7...9.7.6...', '7.9.b.c.b...9...'] },
+  kos: { prog: [5, 5, 3, 0], bars: ['....9.......7...', '........5.......', '....7.......8...', '........7.....5.'] },
+  artem: { prog: [2, 6, 3, [4, 'hmin']], bars: ['2.4.7.9.7.4.', '6.8.a.8.6.4.', '3.5.7.a.7.5.', '6.4.z.0-....'] },
+  sanya: { prog: [3, 2, 1, 0], bars: ['....7...9.....8.', '....6.......4...', '....5...7.....6.', '....4...........'] },
+  misha: { prog: [5, 3, 0, 4], bars: ['7...7.9.a...7...', '7...5.7.8...5...', '4...4.6.7.9.7...', '8...6...4.......'] },
+};
+for (const k in PARTB) THEMES[k].B = PARTB[k];
+THEMES.kos.nofill = THEMES.pasha.nofill = 1;
+
 function impulse(c, sec) {
   const n = Math.floor(c.sampleRate * sec), b = c.createBuffer(2, n, c.sampleRate);
   for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2.8); }
@@ -170,17 +187,25 @@ export class Music {
     else if (kind === 'modem') { const fs = [1070, 1270, 2025, 2225, 980, 1650, 1850]; for (let i = 0; i < 16; i++) this._o('sine', fs[Math.floor(Math.random() * fs.length)], t0 + i * 0.045, 0.04, 0.035, { sus: 1, rel: 0.005, pan: 0.5 }); this._n(t0 + 0.72, 0.35, 0.03, 'bandpass', 1800, { q: 0.5, pan: 0.5 }); }
   }
   setTheme(id) {
-    const T = THEMES[id]; if (!T || this.id === id) return; this.th = T; this.id = id; this.step = 0;
-    const t = this.c.currentTime; this.next = Math.max(this.next, t + 0.06);
+    const T = THEMES[id], t = this.c.currentTime; if (!T || (this.id === id && !this.pend) || this.pend === id) return;
+    if (this.id === id) { this.pend = null; this.trim.gain.setTargetAtTime(T.g || 1, t, 0.08); return; }
+    if (!this.th || t === 0) return this._apply(id, t);
+    this.pend = id; this.pendAt = t + 0.34; this.trim.gain.setTargetAtTime(0.0001, t, 0.09);
+  }
+  _apply(id, t) {
+    const T = THEMES[id]; this.th = T; this.id = id; this.pend = null; this.step = 0;
+    this.next = Math.max(this.next, t + 0.06);
     this.tone.frequency.setTargetAtTime(T.lp || 16000, t, 0.1); this.trim.gain.setTargetAtTime(T.g || 1, t, 0.08); this.revOut.gain.setTargetAtTime(0.5 + (T.rv || 0.25), t, 0.1);
   }
   tones(T, bar) { // аккорд такта: MIDI-ноты, ступень и лад
-    const p = T.prog[bar % T.prog.length], d = Array.isArray(p) ? p[0] : p, sc = Array.isArray(p) ? p[1] : T.sc;
+    const pr = this.sect(T, bar).B ? T.B.prog : T.prog, p = pr[bar % pr.length], d = Array.isArray(p) ? p[0] : p, sc = Array.isArray(p) ? p[1] : T.sc;
     const ms = [dg(T.root, sc, d), dg(T.root, sc, d + 2), dg(T.root, sc, d + 4)]; if (T.seven) ms.push(dg(T.root, sc, d + 6));
     return { d, sc, ms };
   }
+  sect(T, bar) { const L = T.prog.length, n = Math.floor(bar / L) % 4; return { n, B: n === 2 && !!T.B, last: bar % L === L - 1, first: bar % L === 0 }; }
   hold(p, st) { let n = 1; while (st + n < p.length && p[st + n] === '-') n++; return n; }
   schedule(until) {
+    if (this.pend && this.c.currentTime >= this.pendAt) this._apply(this.pend, this.c.currentTime);
     const T = this.th; if (!T) return;
     while (this.next < until) {
       this.sd = 60 / (T.bpm * (1 + 0.1 * this.rush)) / T.sb;
@@ -192,13 +217,16 @@ export class Music {
   playStep(T, bar, st, t) {
     const sd = this.sd, ch = this.tones(T, bar), dr = this.drive;
     for (const k in T.d) { const c = T.d[k][st]; if (c === 'x') this.drum(k, t, 1); }
+    const sec = this.sect(T, bar);
+    if (!T.nofill && sec.last && st >= T.steps - T.sb) this.drum(T.d.s ? 's' : 'r', t, 0.45 + 0.18 * (st - (T.steps - T.sb)));
+    if (st === 0 && sec.first && bar > 0) this._n(t, 0.9, 0.08, 'highpass', 5200, { w: 2 });
     if (dr > 0.4) { if (st % 2 === 1) this.drum('h', t, 0.8 * dr); if (st % (T.sb) === (T.sb >> 1)) this.drum('r', t, 0.7 * dr); if (st % T.sb === 0 && !(T.d.k && T.d.k[st] === 'x')) this.drum('k', t, 0.7 * dr); }
     if (T.b) { const c = T.b.p[st]; if (c !== '.' && c !== '-') this.bass(T.b.i, t, N(dg(T.root, ch.sc, ch.d + dv(c)) - 12 * T.b.o), this.hold(T.b.p, st) * sd, 0.4 * (T.b.v || 1)); }
     if (T.c && T.c.p[st] === 'x') this.chord(T.c.i, t, ch.ms.map(m => m + 12 * T.c.o), T.c.len * sd, T.c.v || 1);
     if (T.a) { const c = T.a.p[st]; if (c !== '.') { const i = +c, m = ch.ms[i % ch.ms.length] + 12 * Math.floor(i / ch.ms.length) + 12 * T.a.o; this.lead(T.a.i, t, N(m), sd * 1.5, T.a.v || 0.6, st % 2 ? 0.35 : -0.35); } }
     if (T.l) {
-      const lb = bar % T.l.bars.length, p = T.l.bars[lb], c = p[st];
-      if (c !== '.' && c !== '-') { const second = T.l.i2 && lb >= T.l.bars.length / 2, deg = (T.l.rel ? ch.d : 0) + dv(c); this.lead(second ? T.l.i2 : T.l.i, t, N(dg(T.root, ch.sc, deg) + 12 * (second ? T.l.o2 : T.l.o)), this.hold(p, st) * sd, T.l.v || 1); }
+      const bars = sec.B ? T.B.bars : T.l.bars, lb = bar % bars.length, p = bars[lb], c = p[st];
+      if (c !== '.' && c !== '-') { const second = T.l.i2 && lb >= T.l.bars.length / 2, deg = (T.l.rel ? ch.d : 0) + dv(c); this.lead(second ? T.l.i2 : T.l.i, t, N(dg(T.root, ch.sc, deg) + 12 * (second ? T.l.o2 : T.l.o)), this.hold(p, st) * sd, T.l.v || 1); if (sec.n === 1 && !second) this.lead(T.l.i, t, N(dg(T.root, ch.sc, deg) + 12 * (T.l.o + 1)), this.hold(p, st) * sd, (T.l.v || 1) * 0.28, -0.3); }
     }
     if (T.fx && st === 0 && (T.fx !== 'modem' || bar % 4 === 3)) this.fx(T.fx, t, T.steps * sd);
   }
@@ -264,13 +292,13 @@ export class Audio {
     return dur;
   }
   // вызывается каждый кадр: планирует музыку чуть вперёд и ведёт звук машины
-  tick(speed01, slip, inCar, wanted) {
+  tick(speed01, slip, inCar, wanted, kind) {
     const c = this.ctx; if (!c || c.state !== 'running') return; const now = c.currentTime, M = this.music;
     M.drive += ((wanted ? 1 : 0) - M.drive) * 0.05; M.rush += (this.rush - M.rush) * 0.02;
     this.musicG.gain.setTargetAtTime(0.5 + 0.28 * this.intensity, now, 0.3);
     if (M.next < now - 0.3) M.next = now + 0.05;
     M.schedule(now + 0.22);
-    const e = this.eng, g = inCar ? 0.035 + speed01 * 0.045 : 0, gear = (speed01 * 4) % 1, f0 = 46 + speed01 * 60 + gear * 34;
+    const kf = kind === 'plow' ? 0.6 : kind === 'van' ? 0.8 : kind === 'mod' ? 1.18 : 1, e = this.eng, g = inCar ? (0.035 + speed01 * 0.045) * (kind === 'plow' ? 1.35 : 1) : 0, gear = (speed01 * (kind === 'plow' ? 3 : 4)) % 1, f0 = (46 + speed01 * 60 + gear * 34) * kf;
     e.g.gain.setTargetAtTime(g, now, 0.1);
     e.o1.frequency.setTargetAtTime(f0, now, 0.06); e.o2.frequency.setTargetAtTime(f0 * 0.5, now, 0.06); e.f.frequency.setTargetAtTime(300 + speed01 * 1300, now, 0.1);
     e.sg.gain.setTargetAtTime(inCar ? Math.min(0.2, Math.max(0, slip - 3) * 0.028) : 0, now, 0.05);
