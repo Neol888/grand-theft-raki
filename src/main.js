@@ -132,6 +132,9 @@ function buildMenu() {
   $('prev').onclick = () => { audio.init(); select((sel + RAKI.length - 1) % RAKI.length); };
   $('next').onclick = () => { audio.init(); select((sel + 1) % RAKI.length); };
   $('play').onclick = () => { audio.init(); startGame(); };
+  $('blb').onclick = () => { audio.init(); openBoard(); };
+  $('lbmx').onclick = () => $('lbm').classList.add('hidden');
+  $('lbm').onclick = (e) => { if (e.target === $('lbm')) $('lbm').classList.add('hidden'); };
   $('hint').textContent = isTouch ? 'Левый палец — руль и газ · правый — камера · 🚪 выйти из машины · звук включится после касания' : 'WASD — ехать · Пробел — ручник · E — выйти / сесть · мышь с зажатой кнопкой — камера · T — чат · M — звук';
   if (isTouch) $('hint').textContent = 'Левый палец — руль и газ · правый — камера · 🚪 выйти из машины · красивее всего — повернув телефон горизонтально';
   select(sel);
@@ -220,6 +223,7 @@ const keys = {}; let stickId = null, stickX = 0, stickY = 0, sx0 = 0, sy0 = 0, l
 addEventListener('keydown', (e) => {
   keys[e.code] = true; if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.code)) e.preventDefault();
   if (e.repeat) return; audio.init();
+  if (!$('lbm').classList.contains('hidden')) { if (e.code === 'Escape' || e.code === 'Enter') $('lbm').classList.add('hidden'); return; }
   if (S.state === 'menu') { if (e.code === 'ArrowLeft' || e.code === 'KeyA') $('prev').onclick(); else if (e.code === 'ArrowRight' || e.code === 'KeyD') $('next').onclick(); else if (e.code === 'Enter' || e.code === 'Space') startGame(); return; }
   if (S.state !== 'play') return;
   if (e.code === 'KeyE' || e.code === 'KeyF' || e.code === 'Enter') action(); else if (e.code === 'KeyT' || e.code === 'Tab') togglePhone(); else if (e.code === 'KeyM') toggleMute();
@@ -228,7 +232,7 @@ addEventListener('keyup', (e) => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 addEventListener('contextmenu', (e) => e.preventDefault());
 addEventListener('gesturestart', (e) => e.preventDefault());
-document.addEventListener('touchmove', (e) => { if (!(e.target.closest && e.target.closest('#plog,#final'))) e.preventDefault(); }, { passive: false });
+document.addEventListener('touchmove', (e) => { if (!(e.target.closest && e.target.closest('#plog,#final,#lbm'))) e.preventDefault(); }, { passive: false });
 document.addEventListener('visibilitychange', () => { const c = audio.ctx; if (!c) return; if (document.hidden) c.suspend(); else c.resume(); last = performance.now(); });
 canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); setTimeout(() => location.reload(), 400); });
 const stickEl = $('stick'), knob = $('knob');
@@ -562,17 +566,33 @@ function lbReq(query, body) {
   if (body) { opt.method = 'POST'; opt.body = JSON.stringify(body); }
   return fetch(LB.url + query, opt).then((r) => { clearTimeout(timer); if (!r.ok) throw new Error('lb ' + r.status); return body ? null : r.json(); }, (e) => { clearTimeout(timer); throw e; });
 }
+const lbDate = (iso) => { const d = new Date(iso); if (isNaN(d)) return ''; const p = (n) => String(n).padStart(2, '0'); return p(d.getDate()) + '.' + p(d.getMonth() + 1) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); };
+const LB_HEAD = '<div class="h">🏆 ТАБЛИЦА ЧАТА</div>';
+const lbLoad = () => lbReq('?select=rak,score,created_at&order=score.desc,created_at.desc&limit=100');
+// rows отсортированы по убыванию очков; mine = {rak, score} только что записанного забега
+function lbHTML(rows, mine, top) {
+  rows = rows.filter((r) => BY_ID[r.rak]);
+  const mi = mine ? rows.findIndex((r) => r.rak === mine.rak && r.score === mine.score) : -1;
+  const row = (r, i) => '<div class="r' + (i === mi ? ' me' : '') + '"><span>' + (i + 1) + '.</span><img src="' + avatars[r.rak] + '" alt=""><b>' + BY_ID[r.rak].name + (i === mi ? ' · это ты' : '') + '</b><i>' + lbDate(r.created_at) + '</i><em>' + (+r.score || 0) + '</em></div>';
+  let h = LB_HEAD + '<div class="s">все забеги · лучшие сверху · всего ' + rows.length + (rows.length >= 100 ? '+' : '') + '</div>';
+  if (!rows.length) return h + '<div class="e">Пока пусто. Доиграй до полуночи — будешь первым.</div>';
+  h += rows.slice(0, top).map(row).join('');
+  if (mi >= top) h += '<div class="e">…</div>' + row(rows[mi], mi);
+  if (rows.length === 1) h += '<div class="e">Пока тут один забег. Кидай ссылку в чат.</div>';
+  return h;
+}
 function leaderboard() {
   // тестовые запуски (?debug, ?t, ?q) в общую таблицу не пишут
-  const st = S.stats, test = (QS.has('debug') || QS.has('t') || QS.has('q')) && !QS.has('lb');
-  const send = S.score > 0 && !test ? lbReq('', { rak: S.pid, score: Math.min(S.score, 12000), missions: Math.min(st.missions, 6), cards: Math.min(st.cards, 2000), bans: Math.min(st.bans, 99) }).catch(() => null) : Promise.resolve();
-  send.then(() => lbReq('?select=rak,score&order=score.desc&limit=400')).then((rows) => {
-    const best = {}, plays = {};
-    for (const r of rows) { if (!BY_ID[r.rak]) continue; plays[r.rak] = (plays[r.rak] || 0) + 1; if (!(r.rak in best)) best[r.rak] = r.score; }
-    const list = Object.keys(best).sort((a, b) => best[b] - best[a]); if (!list.length) return;
-    $('flb').innerHTML = '<div class="h">🏆 Таблица чата</div>' + list.map((id, i) => `<div class="r${id === S.pid ? ' me' : ''}"><span>${i + 1}.</span><img src="${avatars[id]}" alt=""><b>${BY_ID[id].name}</b><i>${plays[id] > 1 ? 'попыток: ' + plays[id] : ''}</i><em>${+best[id] || 0}</em></div>`).join('');
-    $('flb').classList.remove('hidden');
-  }).catch(() => { /* сеть недоступна — таблицу просто не показываем */ });
+  const st = S.stats, test = (QS.has('debug') || QS.has('t') || QS.has('q')) && !QS.has('lb'), el = $('flb'), sent = S.score > 0 && !test;
+  const mine = sent ? { rak: S.pid, score: Math.min(S.score, 12000) } : null;
+  el.classList.remove('hidden'); el.innerHTML = LB_HEAD + '<div class="e">Загружаю…</div>';
+  const send = sent ? lbReq('', { rak: mine.rak, score: mine.score, missions: Math.min(st.missions, 6), cards: Math.min(st.cards, 2000), bans: Math.min(st.bans, 99) }).catch(() => null) : Promise.resolve();
+  send.then(lbLoad).then((rows) => { el.innerHTML = lbHTML(rows, mine, 8); })
+    .catch(() => { el.innerHTML = LB_HEAD + '<div class="e">Нет связи с сервером рекордов. Результат остался на этом устройстве.</div>'; });
+}
+function openBoard() {
+  const box = $('lbmc'); $('lbm').classList.remove('hidden'); box.innerHTML = LB_HEAD + '<div class="e">Загружаю…</div>';
+  lbLoad().then((rows) => { box.innerHTML = lbHTML(rows, null, 30); }).catch(() => { box.innerHTML = LB_HEAD + '<div class="e">Нет связи с сервером рекордов.</div>'; });
 }
 
 // ---------- finale ----------
@@ -607,7 +627,7 @@ function updateFinal(dt) {
   for (const c of S.cars) if (c.ai && c.ai.type === 'traffic') driveTraffic(c, dt, 1e5, 1e5);
   dyn.begin(); carGlows(); updateCollectibles(false); dyn.end();
   if (fin.i < FINALE.length && fin.t > 1.6 + fin.i * 0.95) { const m = FINALE[fin.i++], fc = $('fchat'); fc.appendChild(msgEl(m[0], m[1])); while (fc.children.length > 3) fc.firstChild.remove(); audio.play('msg'); }
-  if (fin.i >= FINALE.length && fin.t > 2.6 + FINALE.length * 0.95 && $('fcard').classList.contains('hidden')) { $('fcard').classList.remove('hidden'); audio.play('win'); }
+  if (fin.i >= FINALE.length && fin.t > 2.6 + FINALE.length * 0.95 && $('fcard').classList.contains('hidden')) { const fc = $('fchat'); while (fc.children.length > 1) fc.firstChild.remove(); $('fcard').classList.remove('hidden'); audio.play('win'); }
 }
 
 // ---------- main loop ----------
