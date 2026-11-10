@@ -29,9 +29,9 @@ const audio = new Audio();
 const head = new THREE.SpotLight(0xfff0d8, 0, 80, 0.5, 0.8, 1.0); scene.add(head, head.target);
 
 const beams = (() => {
-  const b = new Batch(); for (const s of [-0.62, 0.62]) b.add(new THREE.ConeGeometry(1, 1, 12, 1, true), M(s, 0.72, 9.2, 2.0, 14, 2.0, 0, -Math.PI / 2), [0.42, 0.4, 0.32]);
+  const b = new Batch(); for (const s of [-0.62, 0.62]) b.add(new THREE.ConeGeometry(1, 1, 12, 1, true), M(s, 0.72, 9.2, 1.7, 14, 1.7, 0, -Math.PI / 2), [0.15, 0.14, 0.11]);
   const cm = new THREE.Mesh(b.build(), world.cones.material); cm.renderOrder = 4; cm.frustumCulled = false;
-  const p = new Batch(); p.quad([-4.5, 0.2, 26], [4.5, 0.2, 26], [4.5, 0.2, 2.4], [-4.5, 0.2, 2.4], [0.5, 0.47, 0.36]);
+  const p = new Batch(); p.quad([-4.5, 0.2, 26], [4.5, 0.2, 26], [4.5, 0.2, 2.4], [-4.5, 0.2, 2.4], [0.34, 0.32, 0.25]);
   const pm = new THREE.Mesh(p.build(), world.pools.material); pm.renderOrder = 2; pm.frustumCulled = false;
   const g = new THREE.Group(); g.add(cm, pm); return g;
 })();
@@ -449,7 +449,7 @@ function updateMission(dt) {
   for (const p of M.pts) {
     if (p.done) continue; const d = Math.hypot(P.x - p.x, P.z - p.z);
     const okFoot = !st.foot || S.mode === 'foot';
-    if (d < (st.r || 7.5) && okFoot) {
+    if (d < (st.r || 9) && okFoot) {
       p.done = true; audio.play('step'); spray.burst(p.x, 1.5, p.z, 24, 7, 0.8, 2.2, 1.6, 0.4);
       if (p.who) { say(p.who, EXCUSES[p.who] || 'Я пас'); const n = S.npcs.find(q => q.id === p.who); if (n) n.talk = 3; }
       if (st.each) { const k = M.pts.filter(q => q.done).length; say('sys', st.each + [34, 61, 97][k - 1] + '%'); }
@@ -605,5 +605,5 @@ function draw(dt) {
   }
 }
 applyQuality(); buildMenu(); S.state = 'menu'; $('menu').classList.remove('hidden');
-window.__gtr = { S, P, cam, world, post, QL: QT, setQ: (n) => { ql = n; applyQuality(); }, finale, startMission, COL, action, startWanted, audio, step: (n, dt = 1 / 30) => { for (let i = 0; i < n; i++) { S.time += dt; tick(dt); } draw(dt); } };
+window.__gtr = { S, P, cam, world, post, renderer, QL: QT, setQ: (n) => { ql = n; applyQuality(); }, finale, startMission, COL, action, startWanted, audio, step: (n, dt = 1 / 30) => { for (let i = 0; i < n; i++) { S.time += dt; tick(dt); } draw(dt); } };
 requestAnimationFrame(frame);
