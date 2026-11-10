@@ -6,7 +6,7 @@ import { makeRak, animRak, nameSprite } from './raki.js';
 import { Car, NODES, nearestNode, placeTraffic, driveTraffic } from './cars.js';
 import { Snow, Spray, Tracks, DynGlow, Marker } from './fx.js';
 import { Audio } from './audio.js';
-import { RAKI, BY_ID, MISSIONS, ORDER, EXCUSES, AMBIENT, COUNTDOWN, FINALE, RANKS, QUIZ, TIPS } from './data.js';
+import { RAKI, BY_ID, MISSIONS, ORDER, EXCUSES, AMBIENT, COUNTDOWN, FINALE, RANKS, QUIZ, TIPS, ENDING } from './data.js';
 
 const $ = (id) => document.getElementById(id);
 const isTouch = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || 'ontouchstart' in window;
@@ -52,7 +52,7 @@ const avatars = (() => {
 const NC = { nikita: '#aab3cc', dima: '#8fa6dd', igor: '#f0f0f0' };
 
 // ---------- state ----------
-const S = { state: 'boot', t: 0, time: 0, left: 330, score: 0, pid: null, mode: 'car', car: null, cars: [], mods: [], npcs: [], sayQ: [], sayT: 0, mission: null, queue: [], nextM: 6, wanted: 0, caught: 0, busy: 0, modal: false,
+const S = { state: 'boot', t: 0, time: 0, left: 360, score: 0, pid: null, mode: 'car', car: null, cars: [], mods: [], npcs: [], sayQ: [], sayT: 0, mission: null, queue: [], nextM: 6, wanted: 0, caught: 0, busy: 0, modal: false,
   flags: {}, stats: { missions: 0, total: 0, cards: 0, feathers: 0, orchids: 0, bans: 0, stolen: 0 }, amb: 0, cd: 0, acc: 1, lastBump: 0, shake: 0, hudT: 0, placeT: 0, lastPlace: null };
 const P = { x: 0, z: 0, y: 0, vx: 0, vz: 0, layer: 0, h: 0, vy: 0, walk: 0 };
 const cam = { yaw: 0, off: 0, pitch: 0.26, manual: 9, pos: new THREE.Vector3(), init: false };
@@ -117,7 +117,7 @@ const sayQ = (list) => { for (const m of list) S.sayQ.push(m); };
 function showBig(a, b) { const e = $('big'); e.innerHTML = esc(a) + (b ? `<small>${esc(b)}</small>` : ''); e.classList.remove('show'); void e.offsetWidth; e.classList.add('show'); }
 function addScore(n) { S.score = Math.max(0, S.score + n); $('score').textContent = S.score; }
 let promptT = 0;
-function prompt(t, sec = 0) { const e = $('prompt'); if (!t) { if (S.time > promptT) e.classList.add('hidden'); return; } e.textContent = t; e.classList.remove('hidden'); if (sec) promptT = S.time + sec; }
+function prompt(t, sec = 0) { const e = $('prompt'); if (!t) { if (S.time > promptT) e.classList.add('hidden'); return; } e.textContent = t; e.classList.remove('hidden'); promptT = sec ? S.time + sec : 0; }
 function openChoice(ch, cb) {
   S.modal = true; $('mtitle').textContent = ch.title; $('mtext').textContent = ch.text; const o = $('mopts'); o.innerHTML = '';
   ch.opts.forEach((op) => { const b = document.createElement('button'); b.textContent = op.label; b.onclick = () => { $('modal').classList.add('hidden'); S.modal = false; cb(op); }; o.appendChild(b); });
@@ -226,6 +226,9 @@ addEventListener('keydown', (e) => {
 addEventListener('keyup', (e) => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 addEventListener('contextmenu', (e) => e.preventDefault());
+addEventListener('gesturestart', (e) => e.preventDefault());
+document.addEventListener('visibilitychange', () => { const c = audio.ctx; if (!c) return; if (document.hidden) c.suspend(); else c.resume(); last = performance.now(); });
+canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); setTimeout(() => location.reload(), 400); });
 const stickEl = $('stick'), knob = $('knob');
 canvas.addEventListener('pointerdown', (e) => {
   audio.init(); if (S.state !== 'play') return;
@@ -277,7 +280,7 @@ function startGame() {
     P.x = car.e.x; P.z = car.e.z; cam.yaw = Math.PI; cam.init = false;
     S.queue = ORDER.filter(id => id !== S.pid); S.stats.total = S.queue.length;
     S.state = 'play'; S.t = 0; grace = 4; bad = 0; applyQuality(); $('fade').style.opacity = 0;
-    showBig('23:54', 'До релиза пять с половиной минут');
+    showBig('23:54', 'До релиза шесть минут');
     prompt(isTouch ? 'Левый палец — руль и газ · правый — камера' : 'WASD — ехать · Пробел — ручник · E — выйти из машины', 7);
     if (QS.has('t')) S.left = +QS.get('t');
   }, 520);
@@ -552,7 +555,7 @@ function finale() {
   fin = { t: 0, i: 0, fw: 0, rank, best };
   const url = location.origin + location.pathname;
   const text = `🦀 Grand Theft Raki: Новосибирск\nИграл за: ${pname}\nСчёт: ${S.score} — звание ${rank[1]}\nПоручений: ${st.missions}/${st.total} · карточек Игоря: ${st.cards} из 144 · банов от модераторов: ${st.bans}\n${url}`;
-  $('frank').textContent = rank[1]; $('fscore').textContent = S.score + ' очк.'; $('fnote').textContent = rank[2];
+  $('frank').textContent = rank[1]; $('fscore').textContent = S.score + ' очк.'; $('fnote').innerHTML = esc(rank[2]) + '<br><i>' + esc(ENDING[S.pid] || '') + '</i>';
   $('fstats').innerHTML = `Играл за: <b>${esc(pname)}</b> · поручений ${st.missions}/${st.total}<br>карточки ${st.cards}/144 · перья ${st.feathers}/6 · орхидеи ${st.orchids}/6 · угонов ${st.stolen} · банов ${st.bans}` + (best ? `<br>прошлый рекорд на этом устройстве: ${best}` : '');
   $('fcopy').onclick = async () => {
     let ok = false; try { await navigator.clipboard.writeText(text); ok = true; } catch (e) { /* fallback below */ }
