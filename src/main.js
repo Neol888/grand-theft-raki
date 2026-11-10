@@ -5,7 +5,7 @@ import { buildWorld, POI, LANDMARKS, surface, isRoad, bankH, glowScale, BOUND_X,
 import { makeRak, animRak, nameSprite } from './raki.js';
 import { Car, NODES, nearestNode, placeTraffic, driveTraffic } from './cars.js';
 import { Snow, Spray, Tracks, DynGlow, Marker } from './fx.js';
-import { Audio } from './audio.js';
+import { Audio, THEMES } from './audio.js';
 import { RAKI, BY_ID, MISSIONS, ORDER, RUN_SIZE, SCORE_VER, EXCUSES, AMBIENT, COUNTDOWN, FINALE, RANKS, QUIZ, TIPS, ENDING } from './data.js';
 
 const $ = (id) => document.getElementById(id);
@@ -144,7 +144,7 @@ function select(i) {
   $('cname').textContent = r.name; $('ctag').textContent = r.tag; $('cdesc').textContent = r.desc; $('play').textContent = 'Играть за: ' + r.name;
   [...$('strip').children].forEach((c, k) => c.classList.toggle('on', k === i));
   for (const q of RAKI) raki[q.id].visible = q.id === r.id;
-  const m = raki[r.id]; m.position.set(149.6, 0, -29); m.rotation.set(0, -Math.PI / 2, 0); m.userData.pop = 1; audio.play('tick');
+  const m = raki[r.id]; m.position.set(149.6, 0, -29); m.rotation.set(0, -Math.PI / 2, 0); m.userData.pop = 1; audio.play('tick'); audio.setTheme(r.id);
 }
 function updateMenu(dt) {
   const r = raki[RAKI[sel].id], t = S.time; r.userData.pop = Math.max(0, (r.userData.pop || 0) - dt * 3);
@@ -294,7 +294,7 @@ function startGame() {
       for (const id of pool) seen[id] = (seen[id] || 0) + 1;
       try { localStorage.setItem('gtr_seen', JSON.stringify(seen)); } catch (e) { /* ignore */ }
     }
-    S.queue = pool; S.run = pool.slice(); S.done = {}; S.stats.total = pool.length;
+    S.queue = pool; S.run = pool.slice(); S.done = {}; S.stats.total = pool.length; S.radio = null; audio.setTheme(S.pid);
     S.state = 'play'; S.t = 0; grace = 4; bad = 0; applyQuality(); $('fade').style.opacity = 0;
     showBig('23:54', 'До релиза шесть минут');
     prompt(isTouch ? 'Левый палец — руль и газ · правый — камера' : 'WASD — ехать · Пробел — ручник · E — выйти из машины', 7);
@@ -444,6 +444,7 @@ function updateWanted(dt) {
 function startMission(id) {
   const def = MISSIONS[id]; S.mission = { id, def, steps: def.steps.slice(), si: -1, t0: S.t, bonus: 0, pts: [] };
   sayQ(def.intro); nextStep();
+  if (!S.radio) audio.setTheme(def.giver); audio.sting('start');
   if (S.t > 4) showBig('📱 ' + def.title, 'новое поручение · ' + BY_ID[def.giver].name);
 }
 function resolvePts(st) {
@@ -481,6 +482,7 @@ function runDuel(M) {
 }
 function endMission() {
   S.mission = null; S.nextM = S.t + 4.5; S.target = null; markers.forEach(m => m.hide());
+  if (!S.radio) audio.setTheme(S.pid);
   $('objtext').textContent = S.queue.length ? 'Жди сообщений в чате' : 'Поручения кончились. Собирай карточки Игоря'; $('dist').textContent = ''; $('dist').classList.remove('hot');
 }
 function finishMission() {
@@ -610,7 +612,7 @@ function updatePlay(dt) {
   while (S.cd < COUNTDOWN.length && S.left <= COUNTDOWN[S.cd][0]) { const c = COUNTDOWN[S.cd++]; if (S.left > c[0] - 3) S.sayQ.push(['arkasha', c[1]]); }
   if (S.left < 150 && !S.flags.delay) { S.flags.delay = 1; S.left += 15; sayQ([['pasha', 'Перенесли!'], ['sys', 'Релиз перенесли на 15 секунд. +15 сек'], ['pasha', 'Ну обещают без переносов']]); showBig('ПЕРЕНОС', '+15 секунд'); }
   if (qlDropped && !qlSaid) { qlSaid = true; sayQ([['sanya', 'Пришлось оперативки докупить, чтобы графика норм была😅'], ['sys', 'Графика понижена: так плавнее']]); }
-  audio.intensity += ((S.left < 60 ? 1 : S.wanted > 0 ? 0.85 : 0.5) - audio.intensity) * damp(1, dt);
+  audio.intensity += ((S.left < 60 ? 1 : S.wanted > 0 ? 0.85 : 0.5) - audio.intensity) * damp(1, dt); audio.rush = S.left < 60 ? 1 : 0;
   world.setShadowCenter(P.x, P.z);
   updateCamera(dt); updateHUD(dt);
   if (S.left <= 0) finale();
@@ -659,7 +661,7 @@ function openBoard() {
 // ---------- finale ----------
 let fin = null;
 function finale() {
-  S.state = 'final'; audio.play('bell'); audio.intensity = 1; $('hud').classList.add('hidden'); $('modal').classList.add('hidden'); $('phone').classList.add('hidden'); $('final').classList.remove('hidden');
+  S.state = 'final'; audio.play('bell'); audio.sting('final'); audio.rush = 0; audio.setTheme(S.pid); audio.intensity = 1; $('hud').classList.add('hidden'); $('modal').classList.add('hidden'); $('phone').classList.add('hidden'); $('final').classList.remove('hidden');
   post.mFinal.uniforms.uFlash.value = 1; if (rak) rak.visible = false; head.intensity = 0; snow.u.uHead.value = 0; markers.forEach(m => m.hide());
   const st = S.stats; let rank = RANKS[0]; for (const r of RANKS) if (S.score >= r[0]) rank = r;
   let best = 0; try { best = +(localStorage.getItem('gtr_best') || 0); if (S.score > best) localStorage.setItem('gtr_best', S.score); } catch (e) { /* ignore */ }
@@ -721,6 +723,6 @@ function draw(dt) {
   }
 }
 applyQuality(); buildMenu(); S.state = 'menu'; $('menu').classList.remove('hidden');
-const DBG = { S, P, cam, world, post, renderer, QL: QT, setQ: (n) => { ql = n; applyQuality(); }, finale, startMission, COL, action, startWanted, audio, NODES, step: (n, dt = 1 / 30, noDraw) => { for (let i = 0; i < n; i++) { S.time += dt; tick(dt); } if (!noDraw) draw(dt); } };
+const DBG = { S, P, cam, world, post, renderer, QL: QT, setQ: (n) => { ql = n; applyQuality(); }, finale, startMission, COL, action, startWanted, audio, Audio, THEMES, NODES, step: (n, dt = 1 / 30, noDraw) => { for (let i = 0; i < n; i++) { S.time += dt; tick(dt); } if (!noDraw) draw(dt); } };
 if (QS.has('debug')) window.__gtr = DBG;
 requestAnimationFrame(frame);
