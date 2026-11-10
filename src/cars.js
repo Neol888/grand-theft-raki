@@ -36,7 +36,7 @@ export class Car {
     }
     this.g.rotation.order = 'YXZ'; scene.add(this.g);
     this.e = { x, z, y: 0, vx: 0, vz: 0, layer: 0 }; this.e.y = surface(this.e);
-    this.h = h; this.steer = 0; this.vy = 0; this.kind = kind; this.color = colorHex; this.ai = null; this.slip = 0; this.maxSpeed = 33; this.vf = 0; this.roll = 0; this.spin = 0; this.stun = 0;
+    this.h = h; this.steer = 0; this.vy = 0; this.kind = kind; this.color = colorHex; this.ai = null; this.slip = 0; this.maxSpeed = 38; this.vf = 0; this.roll = 0; this.spin = 0; this.stun = 0;
     this.sync(0);
   }
   drive(dt, thr, st, hand, col) {
@@ -50,7 +50,7 @@ export class Car {
     vf = e.vx * fx + e.vz * fz; let vl = e.vx * rx + e.vz * rz;
     if (!air) {
       const max = this.maxSpeed * (ice ? 0.88 : 1); let acc = 0;
-      if (thr > 0) acc = 21 * thr * (1 - clamp(vf / max, 0, 1)) * (vf < -1 ? 2 : 1);
+      if (thr > 0) acc = 23 * thr * (1 - clamp(vf / max, 0, 1)) * (vf < -1 ? 2 : 1);
       else if (thr < 0) acc = vf > 1 ? 36 * thr : 13 * thr * (1 - clamp(-vf / 11, 0, 1));
       if (ice) acc *= 0.5;
       vf += acc * dt; vf -= vf * (thr === 0 ? 0.8 : 0.12) * dt;

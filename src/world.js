@@ -18,7 +18,7 @@ const TYPES = [
 ];
 
 export const POI = {
-  start: [146, 8],
+  start: [147.4, 14],
   arkasha: [152.4, -30], max: [127.5, 90], dima: [57.5, 30], igor: [218.6, 30], geisler: [103, -133],
   pasha: [177, 68.6], nikita: [127.6, 17], kos: [-215.6, -143.5], artem: [245, -128.6], sanya: [-78.5, 30], misha: [-105, 90],
   garage: [-149.5, 22], shop: [218.6, 90], vatutina: [-234, 171.5], gate: [-215.6, -150], artifact: [-262, -152],
@@ -316,7 +316,7 @@ export function buildWorld(scene) {
   function opera(b) {
     const wallC = C(0xdccba4), colC = C(0xeee9dc), domeC = C(0x8f9aa6), cx = 181, cz = -30;
     B.pl.add(new THREE.CylinderGeometry(1, 1, 1, 24), M(cx, 8.15, cz, 15, 16, 15), wallC);
-    B.pl.add(new THREE.SphereGeometry(1, 28, 10, 0, Math.PI * 2, 0, Math.PI / 2), M(cx, 16.1, cz, 15.6, 9.6, 15.6), domeC);
+    B.em.add(new THREE.SphereGeometry(1, 28, 10, 0, Math.PI * 2, 0, Math.PI / 2), M(cx, 16.1, cz, 15.6, 9.6, 15.6), (v) => { const t = smooth(v.y * 1.25), rib = 0.86 + 0.14 * Math.sign(Math.sin(Math.atan2(v.z, v.x) * 14)), f = (0.75 + 0.25 * (-v.x)) * rib; return [lerp(0.62, 0.11, t) * f, lerp(0.47, 0.14, t) * f, lerp(0.3, 0.22, t) * f]; });
     B.pl.add(cylGeo, M(cx, 26.3, cz, 1.6, 1.6, 1.6), colC); B.pl.add(coneGeo, M(cx, 28.6, cz, 1.2, 3, 1.2), domeC);
     B.pl.box(cx - 15.2, cx + 15.2, 16, 16.9, cz - 15.2, cz + 15.2, colC);
     B.pl.box(190, 201, 0.15, 21, cz - 12, cz + 12, wallC, snow);
@@ -325,7 +325,7 @@ export function buildWorld(scene) {
     B.pl.box(157.4, 160.4, 11.1, 13, cz - 14.2, cz + 14.2, colC, snow);
     B.pl.box(157.8, 160.2, 13, 14.4, cz - 10, cz + 10, colC, snow); B.pl.box(158.2, 160, 14.4, 15.4, cz - 5.5, cz + 5.5, colC, snow);
     for (let i = 0; i < 3; i++) B.pl.box(153.8 + i * 1.1, 157.6, 0.15, 0.95 - i * 0.27, cz - 14.5, cz + 14.5, C(0x9a958c), snow);
-    for (let i = 0; i < 5; i++) { const z = cz - 8.5 + i * 4.25; B.em.quad([159.94, 1.2, z - 1.1], [159.94, 1.2, z + 1.1], [159.94, 6.5, z + 1.1], [159.94, 6.5, z - 1.1], [[1.0, 0.6, 0.25], [1.0, 0.6, 0.25], [2.4, 1.6, 0.8], [2.4, 1.6, 0.8]]); }
+    for (let i = 0; i < 5; i++) { const z = cz - 8.5 + i * 4.25; B.em.quad([159.94, 1.2, z - 1.1], [159.94, 1.2, z + 1.1], [159.94, 6.5, z + 1.1], [159.94, 6.5, z - 1.1], [[0.7, 0.42, 0.18], [0.7, 0.42, 0.18], [1.7, 1.1, 0.55], [1.7, 1.1, 0.55]]); }
     col.box(158, 201, cz - 14, cz + 14); col.box(166, 196, cz - 15, cz + 15);
     for (const [px, pz] of [[156, -30], [156, -42], [156, -18], [170, -48], [170, -12], [192, -48], [192, -12]]) pool(px, pz, 13, [0.4, 0.26, 0.12]);
     for (const z of [-44, -16]) { glow(155.5, 0.6, z, 2.2, [2.0, 1.3, 0.6]); glow(155.5, 0.6, z + 9, 2.2, [2.0, 1.3, 0.6]); }
@@ -515,13 +515,13 @@ export function buildWorld(scene) {
   }, { aniso: 8 });
   const iceTex = canvasTex(512, 512, (g) => {
     g.fillStyle = '#1e3f5c'; g.fillRect(0, 0, 512, 512);
-    for (let i = 0; i < 40; i++) { const x = R() * 512, y = R() * 512, r = 30 + R() * 90; const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, R() < 0.6 ? 'rgba(220,232,250,0.55)' : 'rgba(10,30,50,0.5)'); gr.addColorStop(1, 'rgba(30,63,92,0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); }
+    for (let i = 0; i < 40; i++) { const x = R() * 512, y = R() * 512, r = 30 + R() * 90; const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, R() < 0.65 ? 'rgba(228,238,252,0.8)' : 'rgba(10,30,50,0.5)'); gr.addColorStop(1, 'rgba(30,63,92,0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); }
     g.strokeStyle = 'rgba(200,230,255,0.4)';
     for (let i = 0; i < 26; i++) { g.lineWidth = 0.6 + R() * 1.6; g.beginPath(); let x = R() * 512, y = R() * 512; g.moveTo(x, y); for (let k = 0; k < 6; k++) { x += (R() - 0.5) * 120; y += (R() - 0.5) * 120; g.lineTo(x, y); } g.stroke(); }
   });
   const mGR = new THREE.MeshLambertMaterial({ map: snowTex, vertexColors: true });
   const mRD = new THREE.MeshLambertMaterial({ map: roadTex, transparent: true, opacity: 0.88 });
-  const mICE = new THREE.MeshLambertMaterial({ map: iceTex, transparent: true, opacity: 0.6, color: 0xbfd4e8 });
+  const mICE = new THREE.MeshLambertMaterial({ map: iceTex, transparent: true, opacity: 0.68, color: 0xdfeaf6 });
 
   const mesh = (geo, mat, shadow = 3) => { const m = new THREE.Mesh(geo, mat); m.castShadow = !!(shadow & 1); m.receiveShadow = !!(shadow & 2); return m; };
   const city = new THREE.Group(), mirror = new THREE.Group(), bridges = new THREE.Group(), bridgesM = new THREE.Group();

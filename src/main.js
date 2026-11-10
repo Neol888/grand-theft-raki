@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { clamp, angDiff, damp, rng } from './util.js';
+import { clamp, angDiff, damp, rng, Batch, M } from './util.js';
 import { Post } from './post.js';
 import { buildWorld, POI, LANDMARKS, surface, isRoad, bankH, glowScale, BOUND_X, BOUND_Z, RX, RZ } from './world.js';
 import { makeRak, animRak, nameSprite } from './raki.js';
@@ -28,6 +28,13 @@ const markers = [new Marker(scene), new Marker(scene), new Marker(scene)];
 const audio = new Audio();
 const head = new THREE.SpotLight(0xfff0d8, 0, 80, 0.5, 0.8, 1.0); scene.add(head, head.target);
 
+const beams = (() => {
+  const b = new Batch(); for (const s of [-0.62, 0.62]) b.add(new THREE.ConeGeometry(1, 1, 12, 1, true), M(s, 0.72, 9.2, 2.0, 14, 2.0, 0, -Math.PI / 2), [0.42, 0.4, 0.32]);
+  const cm = new THREE.Mesh(b.build(), world.cones.material); cm.renderOrder = 4; cm.frustumCulled = false;
+  const p = new Batch(); p.quad([-4.5, 0.2, 26], [4.5, 0.2, 26], [4.5, 0.2, 2.4], [-4.5, 0.2, 2.4], [0.5, 0.47, 0.36]);
+  const pm = new THREE.Mesh(p.build(), world.pools.material); pm.renderOrder = 2; pm.frustumCulled = false;
+  const g = new THREE.Group(); g.add(cm, pm); return g;
+})();
 const raki = {};
 for (const r of RAKI) { const m = makeRak(r.id); m.visible = false; scene.add(m); raki[r.id] = m; }
 const avatars = (() => {
@@ -60,9 +67,18 @@ const QL = [
   { scale: 0.72, msaa: 0, shadow: 0, snow: 0.35, bloom: 4, mirror: false },
   { scale: 0.55, msaa: 0, shadow: 0, snow: 0.25, bloom: 0, mirror: false },
 ];
-let ql = QS.has('q') ? +QS.get('q') : (isTouch ? 2 : 0), rh = 720, qlSaid = false;
+const QLT = [
+  { scale: 2.0, msaa: 0, shadow: 1024, snow: 0.75, bloom: 5, mirror: true },
+  { scale: 1.5, msaa: 0, shadow: 0, snow: 0.55, bloom: 4, mirror: true },
+  { scale: 1.25, msaa: 0, shadow: 0, snow: 0.4, bloom: 4, mirror: false },
+  { scale: 1.0, msaa: 0, shadow: 0, snow: 0.3, bloom: 3, mirror: false },
+  { scale: 0.75, msaa: 0, shadow: 0, snow: 0.22, bloom: 0, mirror: false },
+];
+const QT = isTouch ? QLT : QL;
+let ql = QS.has('q') ? clamp(+QS.get('q') || 0, 0, QT.length - 1) : (isTouch ? 1 : 0), rh = 720, qlSaid = false, upTried = false, good = 0;
+const ql0 = ql;
 function applyQuality() {
-  const q = QL[ql], dpr = Math.min(window.devicePixelRatio || 1, q.scale);
+  const q = QT[ql], dpr = Math.min(window.devicePixelRatio || 1, q.scale);
   let w = innerWidth * dpr, h = innerHeight * dpr; const k = Math.min(1, Math.sqrt((isTouch ? 1.7e6 : 4.4e6) / (w * h)));
   w = Math.max(160, Math.round(w * k)); h = Math.max(160, Math.round(h * k)); rh = h;
   renderer.setPixelRatio(1); renderer.setSize(w, h, false);
@@ -129,9 +145,9 @@ function select(i) {
 function updateMenu(dt) {
   const r = raki[RAKI[sel].id], t = S.time; r.userData.pop = Math.max(0, (r.userData.pop || 0) - dt * 3);
   r.rotation.y = -Math.PI / 2 + Math.sin(t * 0.6) * 0.35 + r.userData.pop * 2.5; animRak(r, t, 0, (t % 5) < 1.4);
-  const port = camera.aspect < 1;
+  const port = camera.aspect < 1, short = !port && innerHeight < 520, sh = short ? 1.9 : 0;
   camera.position.set(143.2 + Math.sin(t * 0.21) * 0.5 - (port ? 2.5 : 0), 1.5 + Math.sin(t * 0.3) * 0.12, -26.4 + Math.cos(t * 0.17) * 0.5);
-  camera.lookAt(150.2, port ? 1.25 : 1.5, -30.2); camera.fov = port ? 48 : 36; camera.updateProjectionMatrix();
+  camera.lookAt(150.2 + 0.477 * sh, port ? 1.05 : short ? 1.25 : 1.75, -30.2 + 0.879 * sh); camera.fov = port ? 48 : short ? 30 : 36; camera.updateProjectionMatrix();
   for (const c of S.cars) if (c.ai) driveTraffic(c, dt, 1e5, 1e5);
   world.setShadowCenter(150, -30);
   dyn.begin(); carGlows(); npcGlow(r); dyn.end();
@@ -257,11 +273,12 @@ function startGame() {
       m.add(nameSprite(q.name, NC[q.id] || q.css)); world.col.circle(x, z, 0.55);
       S.npcs.push({ id: q.id, x, z, rak: m, cool: 3 + Math.random() * 6, talk: 0 });
     }
-    const car = new Car(scene, POI.start[0], POI.start[1], 0, new THREE.Color(r.css).multiplyScalar(0.8).getHex(), 'sedan'); S.cars.push(car); S.car = car; S.mode = 'car';
-    P.x = car.e.x; P.z = car.e.z; cam.yaw = 0; cam.init = false;
+    const car = new Car(scene, POI.start[0], POI.start[1], Math.PI, new THREE.Color(r.css).multiplyScalar(0.8).getHex(), 'sedan'); S.cars.push(car); S.car = car; S.mode = 'car'; car.g.add(beams);
+    P.x = car.e.x; P.z = car.e.z; cam.yaw = Math.PI; cam.init = false;
     S.queue = ORDER.filter(id => id !== S.pid); S.stats.total = S.queue.length;
     S.state = 'play'; S.t = 0; grace = 4; bad = 0; applyQuality(); $('fade').style.opacity = 0;
     showBig('23:54', 'До релиза пять с половиной минут');
+    prompt(isTouch ? 'Левый палец — руль и газ · правый — камера' : 'WASD — ехать · Пробел — ручник · E — выйти из машины', 7);
     if (QS.has('t')) S.left = +QS.get('t');
   }, 520);
 }
@@ -340,7 +357,7 @@ function action() {
       if (S.stats.stolen === 1) sayQ([['sys', 'Сигналка орёт голосом Макса. Никто не слушает'], ['max', { voice: 23 }]]);
       startWanted(15);
     }
-    c.maxSpeed = c.kind === 'van' ? 27 : 33; S.car = c; S.mode = 'car'; rak.visible = false; prompt(''); $('bAct').textContent = '🚪'; audio.play('door'); wl[6] = false;
+    c.maxSpeed = c.kind === 'van' ? 31 : 38; S.car = c; c.g.add(beams); S.mode = 'car'; rak.visible = false; prompt(''); $('bAct').textContent = '🚪'; audio.play('door'); wl[6] = false;
   }
 }
 
@@ -497,7 +514,9 @@ function updateCamera(dt) {
   cam.pos.y = Math.max(cam.pos.y, bankH(Math.abs(cam.pos.x)) + 0.7);
   S.shake = Math.max(0, S.shake - dt * 3);
   camera.position.set(cam.pos.x + (Math.random() - 0.5) * S.shake * 0.5, cam.pos.y + (Math.random() - 0.5) * S.shake * 0.5, cam.pos.z);
-  camera.lookAt(tx + fx * 3, ty + 0.5, tz + fz * 3); camera.updateProjectionMatrix();
+  camera.lookAt(tx + fx * 3, ty + 0.5, tz + fz * 3);
+  const fc = window.__gtr.free; if (fc) { camera.position.set(fc[0], fc[1], fc[2]); camera.lookAt(fc[3], fc[4], fc[5]); }
+  camera.updateProjectionMatrix();
 }
 
 // ---------- play loop ----------
@@ -559,21 +578,28 @@ function updateFinal(dt) {
 
 // ---------- main loop ----------
 let bad = 0, last = performance.now(), fAcc = 0, fN = 0, grace = 4, qlDropped = false, started = false;
+function tick(dt) { if (S.state === 'play') updatePlay(dt); else if (S.state === 'menu') updateMenu(dt); else if (S.state === 'final') updateFinal(dt); }
 function frame(now) {
   requestAnimationFrame(frame);
   const raw = (now - last) / 1000; last = now; const dt = Math.min(0.05, Math.max(0.001, raw)); S.time += dt;
   try {
-    if (S.state === 'play') updatePlay(dt); else if (S.state === 'menu') updateMenu(dt); else if (S.state === 'final') updateFinal(dt);
+    tick(dt); draw(dt);
+  } catch (err) { $('err').textContent = String(err && err.stack || err).slice(0, 400); }
+  // adaptive quality
+  if (raw < 0.5) { grace -= raw; if (grace <= 0) { fAcc += raw; fN++; if (fAcc > 1.6) { const fps = fN / fAcc; fAcc = 0; fN = 0; if (QS.has('fps')) $('err').textContent = fps.toFixed(0) + ' fps · q' + ql; if (fps < (isTouch ? 27 : 43) && !document.hidden) bad++; else bad = 0; good = fps > 56 ? good + 1 : 0;
+      if (bad >= 2 && ql < QT.length - 1 && !QS.has('q')) { bad = 0; ql++; if (ql > ql0) qlDropped = true; upTried = true; grace = 2.5; applyQuality(); }
+      else if (isTouch && good >= 3 && ql > 0 && !upTried && !QS.has('q') && S.state === 'play') { upTried = true; good = 0; ql--; grace = 3; applyQuality(); } } } }
+  if (!started) { started = true; $('loading').style.opacity = 0; setTimeout(() => $('loading').classList.add('hidden'), 650); }
+}
+function draw(dt) {
+  {
     const u = post.mFinal.uniforms; if (S.state !== 'final') u.uFlash.value = Math.max(0, u.uFlash.value - dt * 2);
     glowScale.value = rh / (2 * Math.tan(camera.fov * Math.PI / 360));
     world.update(dt, S.time, camera); snow.u.uTime.value = S.time; snow.u.uCam.value.copy(camera.position); spray.update(S.time); markers.forEach(m => m.update(S.time));
-    audio.tick(S.state === 'play' && S.mode === 'car' ? clamp(S.car.speed / 33, 0, 1) : 0, S.state === 'play' && S.mode === 'car' ? S.car.slip : 0, S.state === 'play' && S.mode === 'car', S.wanted > 0);
+    audio.tick(S.state === 'play' && S.mode === 'car' ? clamp(S.car.speed / 32, 0, 1) : 0, S.state === 'play' && S.mode === 'car' ? S.car.slip : 0, S.state === 'play' && S.mode === 'car', S.wanted > 0);
     post.render(scene, camera, S.time);
-  } catch (err) { $('err').textContent = String(err && err.stack || err).slice(0, 400); }
-  // adaptive quality
-  if (raw < 0.5) { grace -= raw; if (grace <= 0) { fAcc += raw; fN++; if (fAcc > 1.6) { const fps = fN / fAcc; fAcc = 0; fN = 0; if (QS.has('fps')) $('err').textContent = fps.toFixed(0) + ' fps · q' + ql; if (fps < (isTouch ? 27 : 43) && !document.hidden) bad++; else bad = 0; if (bad >= 2 && ql < QL.length - 1 && !QS.has('q')) { bad = 0; ql++; qlDropped = true; grace = 2.5; applyQuality(); } } } }
-  if (!started) { started = true; $('loading').style.opacity = 0; setTimeout(() => $('loading').classList.add('hidden'), 650); }
+  }
 }
 applyQuality(); buildMenu(); S.state = 'menu'; $('menu').classList.remove('hidden');
-window.__gtr = { S, P, cam, world, post, QL, setQ: (n) => { ql = n; applyQuality(); }, finale, startMission, COL, action };
+window.__gtr = { S, P, cam, world, post, QL: QT, setQ: (n) => { ql = n; applyQuality(); }, finale, startMission, COL, action, startWanted, audio, step: (n, dt = 1 / 30) => { for (let i = 0; i < n; i++) { S.time += dt; tick(dt); } draw(dt); } };
 requestAnimationFrame(frame);
