@@ -472,7 +472,7 @@ function runDuel(M) {
       if (op.k === 'a') d.ai -= 2; else if (op.k === 'd') { d.ai -= 1; hit = 0; } else { d.ai -= 3; d.kids = false; hit = 1; }
       if (d.ai > 0) d.me -= hit;
       d.round++;
-      if (d.ai <= 0) { M.bonus += Math.max(0, 5 - d.round) * 60; say('sys', 'AI повержен. Ходов: ' + (d.round - 1)); nextStep(); }
+      if (d.ai <= 0) { M.bonus += Math.max(0, 5 - d.round) * 50; say('sys', 'AI повержен. Ходов: ' + (d.round - 1)); nextStep(); }
       else if (d.me <= 0) { M.lost = true; say('sys', 'AI сделал тебя, как маленького'); nextStep(); }
       else turn();
     });
