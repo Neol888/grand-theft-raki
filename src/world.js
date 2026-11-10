@@ -591,15 +591,23 @@ export function buildWorld(scene) {
   const fogCol = new THREE.Color(0.05, 0.058, 0.115);
   const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 24, 16), new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, fog: false,
-    uniforms: { uMoon: { value: moonDir }, uHor: { value: fogCol } },
+    uniforms: { uMoon: { value: moonDir }, uHor: { value: fogCol }, uTime: { value: 0 } },
     vertexShader: `varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
-    fragmentShader: `varying vec3 vDir; uniform vec3 uMoon; uniform vec3 uHor;
+    fragmentShader: `varying vec3 vDir; uniform vec3 uMoon; uniform vec3 uHor; uniform float uTime;
+      float hs(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7)))*43758.5453); }
+      float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(hs(i), hs(i+vec2(1.,0.)), f.x), mix(hs(i+vec2(0.,1.)), hs(i+vec2(1.,1.)), f.x), f.y); }
       void main(){ vec3 d = normalize(vDir); d.y = abs(d.y); float h = d.y;
         float ih = clamp(1.0-h, 0.0, 1.0);
         vec3 c = mix(vec3(0.008,0.014,0.04), uHor, pow(ih, 3.2));
         c += vec3(0.30,0.15,0.10)*pow(ih, 7.0)*(0.55 + 0.45*d.x);
         float m = max(dot(d, uMoon), 0.0);
-        c += vec3(0.75,0.85,1.0)*(smoothstep(0.9993,0.9996,m)*3.0 + pow(m,90.0)*0.35 + pow(m,10.0)*0.08);
+        // облака: слой шума на «потолке», снизу подсвечены городом, у луны — холодным
+        vec2 uv = d.xz/(h + 0.16)*1.1 + vec2(uTime*0.006, uTime*0.002);
+        float n = vn(uv)*0.55 + vn(uv*2.1 + 7.3)*0.3 + vn(uv*4.3 + 1.7)*0.15;
+        float cl = smoothstep(0.46, 0.74, n)*smoothstep(0.03, 0.3, h);
+        vec3 cc = mix(vec3(0.035,0.04,0.075), vec3(0.24,0.13,0.12), pow(ih, 2.2)*(0.6 + 0.4*d.x)) + vec3(0.22,0.27,0.38)*pow(m, 5.0);
+        c = mix(c, cc, cl*0.8);
+        c += vec3(0.75,0.85,1.0)*(smoothstep(0.9993,0.9996,m)*3.0*(1.0 - cl*0.85) + pow(m,90.0)*0.35 + pow(m,10.0)*0.08);
         gl_FragColor = vec4(c,1.0); }`,
   }));
   sky.renderOrder = -100; sky.frustumCulled = false; scene.add(sky);
@@ -657,7 +665,7 @@ export function buildWorld(scene) {
       anoMat.uniforms.uTime.value = t;
       for (const a of anomalies) { a.x = a.x0 + Math.sin(t * 0.7 + a.ph) * 3.2; a.z = a.z0 + Math.cos(t * 0.55 + a.ph * 1.7) * 3.2; a.mesh.position.set(a.x, 2.2 + Math.sin(t * 2 + a.ph) * 0.3, a.z); }
       for (const p of puffs) { const k = (t * 0.05 + p.ph) % 1; p.sp.position.set(p.s[0] + k * 34, p.s[1] + k * 22, p.s[2] + k * 12); const sc2 = 5 + k * 26; p.sp.scale.set(sc2, sc2, 1); p.sp.material.opacity = 0.5 * (1 - k) * smooth(k * 8); }
-      sky.position.copy(camera.position);
+      sky.position.copy(camera.position); sky.material.uniforms.uTime.value = t;
     },
     setShadowCenter(x, z) {
       const sx = Math.round(x / 4) * 4, sz = Math.round(z / 4) * 4;
