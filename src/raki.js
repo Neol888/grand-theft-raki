@@ -114,6 +114,37 @@ export function makeRak(id) {
     b.add(G.sph, M(bx, by, 0, 0.15, 0.13, 0.13), shell);
     for (const s of [-1, 1]) { b.add(G.sph, M(bx + s * 0.06, by + 0.16, 0.06, 0.04, 0.04, 0.04), white); b.add(G.sph, M(bx + s * 0.06, by + 0.165, 0.095, 0.02, 0.02, 0.015), black); b.add(G.sph, M(bx + s * 0.17, by + 0.02, 0.08, 0.06, 0.08, 0.05), shell); }
   }
+  // крупные аксессуары, чтобы рак узнавался издалека и на аватарке
+  const red = C(0xc81828), tri = new THREE.CylinderGeometry(1, 1, 1, 3), tor = new THREE.TorusGeometry(0.42, 0.035, 6, 20);
+  if (id === 'arkasha') {
+    b.add(G.cone, M(-0.17, 1.4, 0.45, 0.13, 0.3, 0.07, 0, 0, -Math.PI / 2), red); b.add(G.cone, M(0.17, 1.4, 0.45, 0.13, 0.3, 0.07, 0, 0, Math.PI / 2), red); b.add(G.sph, M(0, 1.4, 0.46, 0.06, 0.06, 0.05), C(0x7a0c1c));
+    for (const s of [-1, 1]) b.add(G.box, M(s * 0.15, 1.13, 0.37, 0.1, 0.42, 0.03, 0, 0, -s * 0.38), C(0x2c303a));
+    b.add(G.box, M(-0.25, 1.2, 0.36, 0.09, 0.06, 0.03), white);
+  } else if (id === 'max') {
+    b.add(G.cyl, M(0, 1.8, 0.02, 0.4, 0.07, 0.36), red); b.add(G.cyl, M(0, 0.86, 0.37, 0.15, 0.05, 0.15, 0, Math.PI / 2), gold);
+  } else if (id === 'dima') {
+    for (const s of [-1, 1]) b.add(G.box, M(s * 0.2, 1.15, 0.34, 0.07, 0.6, 0.05), C(0x2a3852));
+    e.add(G.box, M(0, 1.25, -0.566, 0.18, 0.1, 0.02), [0.3, 2.2, 2.6]);
+  } else if (id === 'igor') {
+    b.add(G.cyl, M(0, 1.97, -0.04, 0.52, 0.03, 0.48), black); b.add(G.cyl, M(0, 2.09, -0.06, 0.24, 0.22, 0.22), black); b.add(G.cyl, M(0, 2.01, -0.06, 0.246, 0.05, 0.226), white);
+  } else if (id === 'pasha') {
+    e.add(tor, M(0, 1.74, -0.3), [1.7, 1.15, 0.25]);
+  } else if (id === 'kos') {
+    b.add(G.sph, M(0, 1.56, 0.3, 0.21, 0.19, 0.14), C(0x262b26));
+    for (const s of [-1, 1]) b.add(G.cyl, M(s * 0.17, 1.5, 0.41, 0.08, 0.1, 0.08, 0, Math.PI / 2), C(0x4a5246));
+    e.add(G.box, M(0.2, 1.0, 0.4, 0.08, 0.12, 0.02), [0.4, 2.2, 0.6]);
+  } else if (id === 'artem') {
+    b.add(tri, M(0, 1.98, -0.02, 0.56, 0.06, 0.56, Math.PI), C(0x15171c)); b.add(tri, M(0, 1.975, -0.02, 0.6, 0.02, 0.6, Math.PI), gold); b.add(G.cyl, M(0, 2.07, -0.04, 0.22, 0.16, 0.22), C(0x15171c));
+    b.add(G.box, M(0.19, 2.16, 0.24, 0.12, 0.1, 0.03), black);
+  } else if (id === 'sanya') {
+    b.add(tor, M(0, 1.64, 0), C(0x1a1a1e)); for (const s of [-1, 1]) b.add(G.cyl, M(s * 0.43, 1.62, 0, 0.13, 0.09, 0.13, 0, 0, Math.PI / 2), C(0x1a1a1e));
+  } else if (id === 'misha') {
+    b.add(G.cone, M(-0.52, 1.84, 0, 0.11, 0.13, 0.11), C(0xf2c230));
+  } else if (id === 'nikita') {
+    b.add(G.box, M(0, 2.16, 0.23, 0.7, 0.18, 0.1), black); e.add(G.box, M(0.17, 2.2, 0.285, 0.16, 0.025, 0.01), [0.6, 0.8, 1.2]);
+  } else if (id === 'geisler') {
+    e.add(G.sph, M(0, 2.26, 0.17, 0.045, 0.045, 0.045), [2.6, 0.4, 0.5]);
+  }
   const body = new THREE.Mesh(b.build(), mat); body.castShadow = true; inner.add(body);
   if (e.count) inner.add(new THREE.Mesh(e.build(), mEm));
   g.userData = { id, inner, armL, armR, legL, legR, ph: Math.random() * 6, glow };
@@ -121,14 +152,17 @@ export function makeRak(id) {
 }
 
 export function animRak(r, t, walk, talk) {
-  const p = r.userData, w = t * 11;
-  p.inner.position.y = Math.abs(Math.sin(w)) * 0.07 * walk + Math.sin(t * 2 + p.ph) * 0.02;
-  p.inner.rotation.z = Math.sin(w) * 0.07 * walk;
+  const p = r.userData, w = t * 11, idle = 1 - walk, snap = Math.pow(Math.max(0, Math.sin(t * 1.9 + p.ph)), 10), tk = talk ? 1 : 0;
+  p.inner.position.y = Math.abs(Math.sin(w)) * 0.07 * walk + Math.sin(t * 2 + p.ph) * 0.025;
+  p.inner.rotation.z = Math.sin(w) * 0.07 * walk + Math.sin(t * 1.3 + p.ph) * 0.045 * idle;
+  p.inner.rotation.x = Math.sin(t * 0.9 + p.ph) * 0.03 * idle;
+  p.inner.rotation.y = Math.sin(t * 0.7 + p.ph * 2) * 0.12 * idle;
+  p.inner.scale.y = 1 + Math.sin(t * 2.4 + p.ph) * 0.015;
   p.legL.rotation.x = Math.sin(w) * 0.9 * walk; p.legR.rotation.x = -Math.sin(w) * 0.9 * walk;
-  const idle = Math.sin(t * 1.7 + p.ph) * 0.08, tk = talk ? 1 : 0;
-  p.armL.rotation.x = -Math.sin(w) * 0.5 * walk + idle - tk * (0.9 + Math.sin(t * 9) * 0.35);
-  p.armR.rotation.x = Math.sin(w) * 0.5 * walk - idle - tk * (0.5 + Math.cos(t * 7) * 0.3);
-  p.armL.rotation.z = -tk * 0.3; p.armR.rotation.z = tk * 0.3;
+  const sw = Math.sin(t * 1.7 + p.ph) * 0.1;
+  p.armL.rotation.x = -Math.sin(w) * 0.5 * walk + sw - snap * 0.5 * idle - tk * (0.9 + Math.sin(t * 9) * 0.35);
+  p.armR.rotation.x = Math.sin(w) * 0.5 * walk - sw - Math.pow(Math.max(0, Math.sin(t * 1.9 + p.ph + 1.6)), 10) * 0.5 * idle - tk * (0.5 + Math.cos(t * 7) * 0.3);
+  p.armL.rotation.z = -tk * 0.3 - snap * 0.25 * idle; p.armR.rotation.z = tk * 0.3 + snap * 0.25 * idle;
 }
 
 export function nameSprite(text, css) {
