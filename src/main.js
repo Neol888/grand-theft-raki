@@ -302,6 +302,10 @@ function updatePlayer(dt) {
       }
     }
     c.sync(); P.x = e.x; P.z = e.z; P.y = e.y; P.layer = e.layer; P.h = c.h;
+    // чат реагирует на то, как ты водишь
+    if (hit > 15 && !S.flags.crash) { S.flags.crash = 1; sayQ([['max', 'Очень плохое сообщение. Оно мне очень не нравится']]); }
+    if (e.layer === 2 && !S.flags.ice) { S.flags.ice = 1; sayQ([['igor', 'На льду перья цапель лежат. Я проверял'], ['geisler', 'А зачем второй раз?)😅']]); }
+    if (c.slip > 8 && c.speed > 13) { S.driftT = (S.driftT || 0) + dt; if (S.driftT > 0.7 && !S.flags.drift) { S.flags.drift = 1; sayQ([['max', 'Оч залипательная)) Там самый кайф в разрушениях']]); } }
     // tyre tracks + snow spray
     const fx = Math.sin(c.h), fz = Math.cos(c.h), rx = -fz, rz = fx, sp = c.speed, air = c.vy !== 0;
     const gy = e.layer === 2 ? e.y + 0.04 : isRoad(e.x, e.z) ? 0.035 : 0.19;
@@ -354,6 +358,7 @@ function action() {
     let lx2 = Math.cos(c.h), lz2 = -Math.sin(c.h); if (world.col.near(c.e.x + lx2 * 2, c.e.z + lz2 * 2, 0.5)) { lx2 = -lx2; lz2 = -lz2; }
     P.x = c.e.x + lx2 * 2; P.z = c.e.z + lz2 * 2; P.y = c.e.y; P.vx = P.vz = 0; P.h = c.h; c.e.vx = c.e.vz = 0; c.vf = 0;
     S.mode = 'foot'; rak.visible = true; cam.yaw += cam.off; cam.off = 0; audio.play('door');
+    if (!S.flags.exit && S.pid !== 'nikita') { S.flags.exit = 1; sayQ([['nikita', 'Че там делать надо?']]); }
   } else {
     const c = nearestCar(5); if (!c) return;
     if (c.ai) {
@@ -536,7 +541,7 @@ function updatePlay(dt) {
   dyn.end();
   // chat pacing
   S.sayT -= dt; if (S.sayQ.length && S.sayT <= 0) { const m = S.sayQ.shift(); say(m[0], m[1]); S.sayT = 1.15; }
-  while (S.amb < AMBIENT.length && AMBIENT[S.amb][0] <= S.t) { const a = AMBIENT[S.amb++]; if (!(a[1] === 'kos' && S.flags.witcher && a[2] === 'На Сергея столик')) S.sayQ.push([a[1], a[2]]); }
+  while (S.amb < AMBIENT.length && AMBIENT[S.amb][0] <= S.t) { const a = AMBIENT[S.amb++]; if (!(a[1] === 'kos' && S.flags.witcher && a[2] === 'На Сергея столик') && !(S.flags.crash && a[0] === 288)) S.sayQ.push([a[1], a[2]]); }
   while (S.cd < COUNTDOWN.length && S.left <= COUNTDOWN[S.cd][0]) { const c = COUNTDOWN[S.cd++]; if (S.left > c[0] - 3) S.sayQ.push(['arkasha', c[1]]); }
   if (S.left < 150 && !S.flags.delay) { S.flags.delay = 1; S.left += 15; sayQ([['pasha', 'Перенесли!'], ['sys', 'Релиз перенесли на 15 секунд. +15 сек'], ['pasha', 'Ну обещают без переносов']]); showBig('ПЕРЕНОС', '+15 секунд'); }
   if (qlDropped && !qlSaid) { qlSaid = true; sayQ([['sanya', 'Пришлось оперативки докупить, чтобы графика норм была😅'], ['sys', 'Графика понижена: так плавнее']]); }
@@ -605,5 +610,5 @@ function draw(dt) {
   }
 }
 applyQuality(); buildMenu(); S.state = 'menu'; $('menu').classList.remove('hidden');
-window.__gtr = { S, P, cam, world, post, renderer, QL: QT, setQ: (n) => { ql = n; applyQuality(); }, finale, startMission, COL, action, startWanted, audio, step: (n, dt = 1 / 30) => { for (let i = 0; i < n; i++) { S.time += dt; tick(dt); } draw(dt); } };
+window.__gtr = { S, P, cam, world, post, renderer, QL: QT, setQ: (n) => { ql = n; applyQuality(); }, finale, startMission, COL, action, startWanted, audio, NODES, step: (n, dt = 1 / 30, noDraw) => { for (let i = 0; i < n; i++) { S.time += dt; tick(dt); } if (!noDraw) draw(dt); } };
 requestAnimationFrame(frame);
