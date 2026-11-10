@@ -551,7 +551,7 @@ function updateHUD(dt) {
   drawMap();
   if (S.mission) {
     const M = S.mission, st = M.steps[M.si]; let t = '';
-    if (st && st.slow) t = '· терпение ' + Math.min(100, Math.round(100 * M.prog / st.slow)) + '% · ' + Math.round(S.car.speed * 3.6) + ' км/ч';
+    if (st && st.slow) t = '· ' + Math.min(100, Math.round(100 * M.prog / st.slow)) + '% · ' + Math.round(S.car.speed * 3.6) + ' км/ч';
     else if (S.target && M.pts.length) {
       t = '· ' + Math.round(S.targetD) + ' м';
       const rel = angDiff(cam.yaw + (S.mode === 'car' ? cam.off : 0), Math.atan2(S.target.x - P.x, S.target.z - P.z)); $('arrow').style.transform = 'rotate(' + (-rel) + 'rad)';
