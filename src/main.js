@@ -151,7 +151,7 @@ function updateMenu(dt) {
   r.rotation.y = -Math.PI / 2 + Math.sin(t * 0.6) * 0.35 + r.userData.pop * 2.5; animRak(r, t, 0, (t % 5) < 1.4);
   const port = camera.aspect < 1, short = !port && innerHeight < 520, sh = short ? 1.9 : 0;
   camera.position.set(143.2 + Math.sin(t * 0.21) * 0.5 - (port ? 2.5 : 0), 1.5 + Math.sin(t * 0.3) * 0.12, -26.4 + Math.cos(t * 0.17) * 0.5);
-  camera.lookAt(150.2 + 0.477 * sh, port ? 1.05 : short ? 1.25 : 0.8, -30.2 + 0.879 * sh); camera.fov = port ? 48 : short ? 30 : 36; camera.updateProjectionMatrix();
+  camera.lookAt(150.2 + 0.477 * sh, port ? 0.1 : short ? 1.25 : 0.2, -30.2 + 0.879 * sh); camera.fov = port ? 48 : short ? 30 : 44; camera.updateProjectionMatrix();
   for (const c of S.cars) if (c.ai) driveTraffic(c, dt, 1e5, 1e5);
   world.setShadowCenter(150, -30);
   dyn.begin(); carGlows(); npcGlow(r); dyn.end();
@@ -294,7 +294,7 @@ function startGame() {
       for (const id of pool) seen[id] = (seen[id] || 0) + 1;
       try { localStorage.setItem('gtr_seen', JSON.stringify(seen)); } catch (e) { /* ignore */ }
     }
-    S.queue = pool; S.run = pool.slice(); S.stats.total = pool.length;
+    S.queue = pool; S.run = pool.slice(); S.done = {}; S.stats.total = pool.length;
     S.state = 'play'; S.t = 0; grace = 4; bad = 0; applyQuality(); $('fade').style.opacity = 0;
     showBig('23:54', 'До релиза шесть минут');
     prompt(isTouch ? 'Левый палец — руль и газ · правый — камера' : 'WASD — ехать · Пробел — ручник · E — выйти из машины', 7);
@@ -443,7 +443,8 @@ function updateWanted(dt) {
 // ---------- missions ----------
 function startMission(id) {
   const def = MISSIONS[id]; S.mission = { id, def, steps: def.steps.slice(), si: -1, t0: S.t, bonus: 0, pts: [] };
-  sayQ(def.intro); S.introHold = S.t + def.intro.length * 1.15; nextStep();
+  sayQ(def.intro); nextStep();
+  if (S.t > 4) showBig('📱 ' + def.title, 'новое поручение · ' + BY_ID[def.giver].name);
 }
 function resolvePts(st) {
   if (st.raki) { const ids = ['arkasha', 'max', 'igor', 'pasha', 'nikita', 'geisler'].filter(i => i !== S.pid).slice(0, st.raki); return ids.map(i => ({ x: POI[i][0], z: POI[i][1], who: i, done: false })); }
@@ -480,15 +481,17 @@ function runDuel(M) {
 }
 function endMission() {
   S.mission = null; S.nextM = S.t + 4.5; S.target = null; markers.forEach(m => m.hide());
-  $('objtext').textContent = S.queue.length ? 'Жди сообщений в чате' : 'Поручения кончились. Собирай карточки Игоря'; $('dist').textContent = '';
+  $('objtext').textContent = S.queue.length ? 'Жди сообщений в чате' : 'Поручения кончились. Собирай карточки Игоря'; $('dist').textContent = ''; $('dist').classList.remove('hot');
 }
 function finishMission() {
   const M = S.mission, tb = M.lost ? 0 : Math.max(0, Math.round((M.def.par - (S.t - M.t0)) * 8)), total = Math.round(M.def.reward * (M.lost ? 0.4 : 1)) + M.bonus + tb;
+  S.done[M.id] = M.lost ? '≈' : '✔';
   addScore(total); S.stats.missions++; showBig((M.lost ? '≈ ' : '✔ ') + M.def.title, '+' + total + (tb ? ' · за скорость +' + tb : '')); audio.play('win'); sayQ(M.lost && M.def.outroLost ? M.def.outroLost : M.def.outro);
   endMission();
 }
 function failMission() {
   const M = S.mission, r = M.def.failReward || 150;
+  S.done[M.id] = '✖';
   addScore(r); showBig('✖ ' + M.def.title, 'не успел · +' + r); audio.play('bad'); sayQ(M.def.fail || []);
   endMission();
 }
@@ -516,7 +519,7 @@ function updateMission(dt) {
     }
     if (st.foot && S.mode === 'car' && d < 60) prompt('В Зону только пешком: выйди из машины', 0.3);
     left++; if (d < bd) { bd = d; bp = p; }
-    if (mi < 3) { const e = { x: p.x, z: p.z, y: 0 }; markers[mi++].set(p.x, surface(e), p.z, st.foot ? 0x7dff5d : 0xffc83d); }
+    if (mi < 3) { const e = { x: p.x, z: p.z, y: 0 }; markers[mi++].set(p.x, surface(e), p.z, M.deadline ? 0xff4a5e : st.foot ? 0x7dff5d : 0xffc83d); }
   }
   for (; mi < 3; mi++) markers[mi].hide();
   if (!left) { if (st.say) sayQ(st.say); if (st.big) showBig(st.big[0], st.big[1]); if (st.wanted) startWanted(st.wanted); nextStep(); return; }
@@ -556,8 +559,9 @@ function updateHUD(dt) {
       t = '· ' + Math.round(S.targetD) + ' м';
       const rel = angDiff(cam.yaw + (S.mode === 'car' ? cam.off : 0), Math.atan2(S.target.x - P.x, S.target.z - P.z)); $('arrow').style.transform = 'rotate(' + (-rel) + 'rad)';
     }
-    if (M.deadline) t += ' · ⏱ ' + Math.max(0, Math.ceil(M.deadline - S.t)) + ' с';
-    $('dist').textContent = t;
+    const tl = M.deadline ? Math.max(0, Math.ceil(M.deadline - S.t)) : -1;
+    if (tl >= 0) { t += ' · ⏱ ' + tl + ' с'; if (tl <= 5 && tl !== S.lastTl) { S.lastTl = tl; audio.play('tick'); } }
+    $('dist').textContent = t; $('dist').classList.toggle('hot', tl >= 0 && tl <= 10);
   }
   S.placeT -= 0.1;
   for (const L of LANDMARKS) if (Math.hypot(P.x - L.x, P.z - L.z) < L.r && S.lastPlace !== L && S.placeT <= 0) { S.lastPlace = L; S.placeT = 6; const e = $('place'); e.textContent = L.name; e.style.opacity = 1; setTimeout(() => { e.style.opacity = 0; }, 3500); }
@@ -663,7 +667,12 @@ function finale() {
   const url = location.origin + location.pathname;
   const text = `🦀 Grand Theft Raki: Новосибирск\nИграл за: ${pname}\nСчёт: ${S.score} — звание ${rank[1]}\nПоручений: ${st.missions}/${st.total} · карточек Игоря: ${st.cards} из 144 · банов от модераторов: ${st.bans}\n${url}`;
   $('frank').textContent = rank[1]; $('fscore').textContent = S.score + ' очк.'; $('fnote').innerHTML = esc(rank[2]) + '<br><i>' + esc(ENDING[S.pid] || '') + '</i>';
-  $('fstats').innerHTML = `Играл за: <b>${esc(pname)}</b> · поручений ${st.missions}/${st.total}<br>карточки ${st.cards}/144 · перья ${st.feathers}/6 · орхидеи ${st.orchids}/6 · угонов ${st.stolen} · банов ${st.bans}` + (best ? `<br>прошлый рекорд на этом устройстве: ${best}` : '');
+  const run = (S.run || []).map((id) => (S.done[id] || '—') + ' ' + MISSIONS[id].title).join(' · ');
+  const rest = ORDER.filter((id) => id !== S.pid && !(S.run || []).includes(id)).map((id) => BY_ID[id].name).join(', ');
+  $('fstats').innerHTML = 'Играл за: <b>' + esc(pname) + '</b> · поручений ' + st.missions + '/' + st.total + '<br>' + esc(run)
+    + '<br>карточки ' + st.cards + '/144 · перья ' + st.feathers + '/6 · орхидеи ' + st.orchids + '/6 · угонов ' + st.stolen + ' · банов ' + st.bans
+    + (rest ? '<br><span class="nx">В этот раз не выпали поручения: ' + esc(rest) + '. Сыграй ещё.</span>' : '')
+    + (best ? '<br>прошлый рекорд на этом устройстве: ' + best : '');
   $('fcopy').onclick = async () => {
     let ok = false; try { await navigator.clipboard.writeText(text); ok = true; } catch (e) { /* fallback below */ }
     if (!ok) { const ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;left:0;top:0;opacity:0'; document.body.appendChild(ta); ta.focus(); ta.select(); try { ok = document.execCommand('copy'); } catch (e) { ok = false; } ta.remove(); }
