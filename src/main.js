@@ -201,7 +201,7 @@ function collect(c) {
 // ---------- cars ----------
 const CARCOL = [0x8a2a2a, 0x2a4a8a, 0x6a6f78, 0x1f2a36, 0xcfd3da, 0x2f6a4a, 0x7a5a2a, 0x3a3a3a, 0x8a8f2a, 0x5a2a6a];
 for (let i = 0; i < 11; i++) {
-  const van = i % 5 === 4, c = new Car(scene, 0, 0, 0, van ? 0xe0b020 : CARCOL[i % CARCOL.length], van ? 'van' : 'sedan');
+  const van = i % 5 === 4, plow = i === 2 || i === 7, c = new Car(scene, 0, 0, 0, plow ? 0xd9661a : van ? 0xe0b020 : CARCOL[i % CARCOL.length], plow ? 'plow' : van ? 'van' : 'sedan');
   const from = (i * 17 + 3) % NODES.length, nb = NODES[from].nb; placeTraffic(c, from, nb[i % nb.length]); S.cars.push(c);
 }
 function carGlows() {
@@ -213,6 +213,8 @@ function carGlows() {
       dyn.add(e.x + fx * 2.25 + rx * s, e.y + 0.74, e.z + fz * 2.25 + rz * s, 2.1, 1.7 * on, 1.6 * on, 1.25 * on);
       dyn.add(e.x - fx * 2.25 + rx * s, e.y + 0.76, e.z - fz * 2.25 + rz * s, 1.3, 1.5 * on, 0.1 * on, 0.06 * on);
     }
+    if (c.kind === 'plow') { const b = (S.time * 3 | 0) % 2; dyn.add(e.x + fx * 1.35, e.y + 2.5, e.z + fz * 1.35, 4, b ? 2.6 : 0.4, b ? 1.3 : 0.2, 0.1); }
+    if (Math.random() < 0.12 && Math.abs(e.x - cx) < 70 && Math.abs(e.z - cz) < 70) spray.emit(e.x - fx * 2.25 - rx * 0.5, e.y + 0.4, e.z - fz * 2.25 - rz * 0.5, -fx * 0.8 + (Math.random() - 0.5) * 0.4, 0.9 + Math.random() * 0.6, -fz * 0.8 + (Math.random() - 0.5) * 0.4, 1.3, 0.09, 0.09, 0.11);
     if (c.kind === 'mod') { const b = (S.time * 7 | 0) % 2; dyn.add(e.x, e.y + 2.0, e.z, 7, b ? 0.3 : 2.6, 0.2, b ? 3.0 : 0.3); }
   }
 }

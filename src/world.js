@@ -429,6 +429,14 @@ export function buildWorld(scene) {
     sign('ТА САМАЯ ИГРА', '#ff4fd8', x - 0.3, 10.2, z, 15, '-x', false); sign('19.11.2026 · 212 ГБ', '#3df2ff', x - 0.3, 7.8, z, 15, '-x', false);
     sign('ТА САМАЯ ИГРА', '#ff4fd8', x + 0.3, 10.2, z, 15, '+x', false); sign('ОСВОБОДИ МЕСТО', '#ffd23d', x + 0.3, 7.8, z, 15, '+x', false);
   }
+  // гирлянды над Красным проспектом и сугробы у бордюров
+  const gcol = [[1.5, 0.9, 0.4], [1.5, 0.25, 0.3], [0.3, 1.4, 0.6], [0.4, 0.7, 1.6]];
+  for (let z = -160, gi = 0; z <= 160; z += 20) { if (RZ.some(r => Math.abs(z - r) < 9) || Math.abs(z - 30) < 12) continue; for (let i = 0; i <= 10; i++) { const u = i / 10; glow(129.5 + u * 21, 7.6 - Math.sin(u * Math.PI) * 1.5, z, 0.9, gcol[(gi + i) % 4]); } gi++; }
+  const sphLow = new THREE.SphereGeometry(1, 8, 5);
+  for (const bl of blocks) for (let i = 0; i < 5; i++) {
+    const side = Math.floor(R() * 4), t = R(), x = side < 2 ? lerp(bl.x0 + 2, bl.x1 - 2, t) : side === 2 ? bl.x0 + 1 : bl.x1 - 1, z = side >= 2 ? lerp(bl.z0 + 2, bl.z1 - 2, t) : side === 0 ? bl.z0 + 1 : bl.z1 - 1;
+    if (col.near(x, z, 1.2)) continue; B.pl.add(sphLow, M(x, 0.12, z, side < 2 ? 1.6 + R() * 1.6 : 0.9, 0.35 + R() * 0.3, side < 2 ? 0.9 : 1.6 + R() * 1.6), snow);
+  }
   // билборды с цитатами из чата вдоль набережных
   const bcol = ['#ff4fd8', '#3df2ff', '#ffd23d', '#6dff8a'];
   const billboard = (x, z, a1, a2, b1, b2, k) => {

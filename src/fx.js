@@ -17,12 +17,13 @@ export class Snow {
           p.x += sin(uTime*0.6 + aSeed*40.0)*1.2 + uTime*1.7; p.z += cos(uTime*0.5 + aSeed*31.0)*1.2 + uTime*0.7;
           p = mod(p - uCam, uBox) - uBox*0.5 + uCam;
           vec4 mv = viewMatrix*vec4(p,1.0); gl_Position = projectionMatrix*mv; float d = max(-mv.z, 0.5);
-          gl_PointSize = clamp((0.07 + aSeed*0.08)*uScale/d, 1.0, 26.0);
+          float big = step(0.94, fract(aSeed*7.31));
+          gl_PointSize = clamp((0.07 + aSeed*0.08 + big*0.2)*uScale/d, 1.0, 44.0);
           float low = 1.0 - smoothstep(3.0, 15.0, p.y);
           vC = mix(vec3(0.5,0.62,0.95), vec3(1.0,0.76,0.5), low*0.8);
           vec3 tc = p - uCar; float al = dot(tc, uCarDir); float pr = length(tc - uCarDir*al);
           vC += vec3(1.8,1.7,1.4)*uHead*smoothstep(0.5,4.0,al)*(1.0-smoothstep(10.0,36.0,al))*(1.0-smoothstep(0.0,1.0,pr/(1.2+al*0.26)));
-          vA = (0.3 + 0.55*low)*smoothstep(0.6,3.0,d)*(1.0-smoothstep(26.0,36.0,d)); }`,
+          vA = (0.3 + 0.55*low)*smoothstep(0.6,3.0,d)*(1.0-smoothstep(26.0,36.0,d))*mix(1.0, 0.4, big); }`,
       fragmentShader: `varying float vA; varying vec3 vC; void main(){ float r = length(gl_PointCoord-0.5)*2.0; gl_FragColor = vec4(vC*vA*(1.0-smoothstep(0.15,1.0,r)),1.0); }`,
     }));
     this.pts.frustumCulled = false; this.pts.renderOrder = 8; scene.add(this.pts);
