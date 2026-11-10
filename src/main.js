@@ -553,6 +553,28 @@ function updatePlay(dt) {
   if (S.left <= 0) finale();
 }
 
+// ---------- общая таблица рекордов (Supabase: публичный ключ, только чтение и вставка) ----------
+const LB = { url: 'https://ecwhfahziwuocmxzyomu.supabase.co/rest/v1/gtr_scores', key: 'sb_publishable_srHhvRICnwOl-3P-CPRnKg_Oyx7JTyc' };
+function lbReq(query, body) {
+  const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null, timer = setTimeout(() => { if (ctl) ctl.abort(); }, 7000);
+  const opt = { headers: { apikey: LB.key, 'Content-Type': 'application/json', Prefer: 'return=minimal' } };
+  if (ctl) opt.signal = ctl.signal;
+  if (body) { opt.method = 'POST'; opt.body = JSON.stringify(body); }
+  return fetch(LB.url + query, opt).then((r) => { clearTimeout(timer); if (!r.ok) throw new Error('lb ' + r.status); return body ? null : r.json(); }, (e) => { clearTimeout(timer); throw e; });
+}
+function leaderboard() {
+  // тестовые запуски (?debug, ?t, ?q) в общую таблицу не пишут
+  const st = S.stats, test = (QS.has('debug') || QS.has('t') || QS.has('q')) && !QS.has('lb');
+  const send = S.score > 0 && !test ? lbReq('', { rak: S.pid, score: Math.min(S.score, 12000), missions: Math.min(st.missions, 6), cards: Math.min(st.cards, 2000), bans: Math.min(st.bans, 99) }).catch(() => null) : Promise.resolve();
+  send.then(() => lbReq('?select=rak,score&order=score.desc&limit=400')).then((rows) => {
+    const best = {}, plays = {};
+    for (const r of rows) { if (!BY_ID[r.rak]) continue; plays[r.rak] = (plays[r.rak] || 0) + 1; if (!(r.rak in best)) best[r.rak] = r.score; }
+    const list = Object.keys(best).sort((a, b) => best[b] - best[a]); if (!list.length) return;
+    $('flb').innerHTML = '<div class="h">🏆 Таблица чата</div>' + list.map((id, i) => `<div class="r${id === S.pid ? ' me' : ''}"><span>${i + 1}.</span><img src="${avatars[id]}" alt=""><b>${BY_ID[id].name}</b><i>${plays[id] > 1 ? 'попыток: ' + plays[id] : ''}</i><em>${+best[id] || 0}</em></div>`).join('');
+    $('flb').classList.remove('hidden');
+  }).catch(() => { /* сеть недоступна — таблицу просто не показываем */ });
+}
+
 // ---------- finale ----------
 let fin = null;
 function finale() {
@@ -572,6 +594,7 @@ function finale() {
     else { $('fstats').innerHTML = `<textarea readonly style="width:100%;height:120px;font:13px system-ui;background:#111a2a;color:#fff;border:1px solid #445;border-radius:10px;padding:8px;-webkit-user-select:text;user-select:text">${esc(text)}</textarea>`; $('fcopy').textContent = 'Выдели и скопируй текст выше'; }
   };
   $('fagain').onclick = () => location.reload();
+  leaderboard();
 }
 function updateFinal(dt) {
   fin.t += dt; const u = post.mFinal.uniforms; u.uFlash.value = Math.max(0, u.uFlash.value - dt * 1.2);
