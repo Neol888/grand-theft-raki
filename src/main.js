@@ -147,7 +147,7 @@ function updateMenu(dt) {
   r.rotation.y = -Math.PI / 2 + Math.sin(t * 0.6) * 0.35 + r.userData.pop * 2.5; animRak(r, t, 0, (t % 5) < 1.4);
   const port = camera.aspect < 1, short = !port && innerHeight < 520, sh = short ? 1.9 : 0;
   camera.position.set(143.2 + Math.sin(t * 0.21) * 0.5 - (port ? 2.5 : 0), 1.5 + Math.sin(t * 0.3) * 0.12, -26.4 + Math.cos(t * 0.17) * 0.5);
-  camera.lookAt(150.2 + 0.477 * sh, port ? 1.05 : short ? 1.25 : 1.75, -30.2 + 0.879 * sh); camera.fov = port ? 48 : short ? 30 : 36; camera.updateProjectionMatrix();
+  camera.lookAt(150.2 + 0.477 * sh, port ? 1.05 : short ? 1.25 : 0.8, -30.2 + 0.879 * sh); camera.fov = port ? 48 : short ? 30 : 36; camera.updateProjectionMatrix();
   for (const c of S.cars) if (c.ai) driveTraffic(c, dt, 1e5, 1e5);
   world.setShadowCenter(150, -30);
   dyn.begin(); carGlows(); npcGlow(r); dyn.end();
