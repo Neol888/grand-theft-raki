@@ -12,8 +12,8 @@ export class Audio {
     this.master = c.createGain(); this.master.gain.value = 0.85;
     const comp = c.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 5;
     this.master.connect(comp); comp.connect(c.destination);
-    this.music = c.createGain(); this.music.gain.value = 0.5; this.music.connect(this.master);
-    this.sfx = c.createGain(); this.sfx.gain.value = 0.8; this.sfx.connect(this.master);
+    this.music = c.createGain(); this.music.gain.value = 0.66; this.music.connect(this.master);
+    this.sfx = c.createGain(); this.sfx.gain.value = 0.95; this.sfx.connect(this.master);
     // delay for arps
     const d = c.createDelay(1); d.delayTime.value = 0.47; const fb = c.createGain(); fb.gain.value = 0.36; const dl = c.createBiquadFilter(); dl.type = 'lowpass'; dl.frequency.value = 2200;
     d.connect(dl); dl.connect(fb); fb.connect(d); dl.connect(this.music); this.delay = d;

@@ -133,6 +133,7 @@ function buildMenu() {
   $('next').onclick = () => { audio.init(); select((sel + 1) % RAKI.length); };
   $('play').onclick = () => { audio.init(); startGame(); };
   $('hint').textContent = isTouch ? 'Левый палец — руль и газ · правый — камера · 🚪 выйти из машины · звук включится после касания' : 'WASD — ехать · Пробел — ручник · E — выйти / сесть · мышь с зажатой кнопкой — камера · T — чат · M — звук';
+  if (isTouch) $('hint').textContent = 'Левый палец — руль и газ · правый — камера · 🚪 выйти из машины · красивее всего — повернув телефон горизонтально';
   select(sel);
 }
 function select(i) {
@@ -524,7 +525,7 @@ function updateCamera(dt) {
   S.shake = Math.max(0, S.shake - dt * 3);
   camera.position.set(cam.pos.x + (Math.random() - 0.5) * S.shake * 0.5, cam.pos.y + (Math.random() - 0.5) * S.shake * 0.5, cam.pos.z);
   camera.lookAt(tx + fx * 3, ty + 0.5, tz + fz * 3);
-  const fc = window.__gtr.free; if (fc) { camera.position.set(fc[0], fc[1], fc[2]); camera.lookAt(fc[3], fc[4], fc[5]); }
+  const fc = DBG.free; if (fc) { camera.position.set(fc[0], fc[1], fc[2]); camera.lookAt(fc[3], fc[4], fc[5]); }
   camera.updateProjectionMatrix();
 }
 
@@ -610,5 +611,6 @@ function draw(dt) {
   }
 }
 applyQuality(); buildMenu(); S.state = 'menu'; $('menu').classList.remove('hidden');
-window.__gtr = { S, P, cam, world, post, renderer, QL: QT, setQ: (n) => { ql = n; applyQuality(); }, finale, startMission, COL, action, startWanted, audio, NODES, step: (n, dt = 1 / 30, noDraw) => { for (let i = 0; i < n; i++) { S.time += dt; tick(dt); } if (!noDraw) draw(dt); } };
+const DBG = { S, P, cam, world, post, renderer, QL: QT, setQ: (n) => { ql = n; applyQuality(); }, finale, startMission, COL, action, startWanted, audio, NODES, step: (n, dt = 1 / 30, noDraw) => { for (let i = 0; i < n; i++) { S.time += dt; tick(dt); } if (!noDraw) draw(dt); } };
+if (QS.has('debug')) window.__gtr = DBG;
 requestAnimationFrame(frame);
