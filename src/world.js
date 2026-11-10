@@ -123,7 +123,7 @@ function facadeTex(style, R) {
 
 export function buildWorld(scene) {
   const R = rng(20261119);
-  const pick = (a) => a[Math.floor(R() * a.length)];
+  const pick = (a) => a[Math.floor(R() * a.length)], R2 = rng(777);
   const col = new Colliders();
   const B = { fa: new Batch(), fb: new Batch(), pl: new Batch(), em: new Batch(), gr: new Batch(), rd: new Batch(), br: new Batch(), brE: new Batch(), sg: new Batch(), pool: new Batch(), cone: new Batch(), streak: new Batch() };
   const lamps = [], glows = [], smokes = [], blocks = [], anomalies = [];
@@ -176,6 +176,16 @@ export function buildWorld(scene) {
     facade(fb, x0, x1, z0, z1, 0.15, h, tint);
     B.pl.box(x0 - 0.3, x1 + 0.3, h, h + 0.5, z0 - 0.3, z1 + 0.3, mulc(tint, 0.5), snow);
     if (R() < 0.7) { const w = 2 + R() * 3, d = 2 + R() * 3, cx = lerp(x0 + 3, x1 - 3, R()), cz = lerp(z0 + 3, z1 - 3, R()); B.pl.box(cx - w / 2, cx + w / 2, h + 0.5, h + 2 + R() * 1.5, cz - d / 2, cz + d / 2, C(0x3a3f4a), snow); }
+    for (let i = 0, n = 1 + Math.floor(R2() * 3); i < n; i++) { // антенны
+      const ax = lerp(x0 + 2, x1 - 2, R2()), az = lerp(z0 + 2, z1 - 2, R2()), ah = 2.5 + R2() * 3;
+      beam(B.pl, [ax, h + 0.5, az], [ax, h + 0.5 + ah, az], 0.05, dark, 3); B.pl.box(ax - 0.7, ax + 0.7, h + 0.5 + ah * 0.7, h + 0.55 + ah * 0.7, az - 0.04, az + 0.04, dark);
+    }
+    if (h > 40) glow(x0 + 1, h + 1.2, z0 + 1, 3.5, [2, 0.15, 0.1]);
+    if (fb === B.fa && x1 - x0 > 20) for (let x = x0 + 6.4; x < x1 - 3; x += 12.8) { // подъезды со стороны +z
+      B.pl.box(x - 1.3, x + 1.3, 2.7, 2.9, z1, z1 + 1.5, C(0x4a4f5a), snow);
+      B.em.quad([x - 0.6, 0.2, z1 + 0.05], [x + 0.6, 0.2, z1 + 0.05], [x + 0.6, 2.3, z1 + 0.05], [x - 0.6, 2.3, z1 + 0.05], [[0.5, 0.3, 0.12], [0.5, 0.3, 0.12], [1.3, 0.85, 0.4], [1.3, 0.85, 0.4]]);
+      glow(x, 2.55, z1 + 1.2, 1.2, [1.3, 0.9, 0.5]); pool(x, z1 + 2.2, 3.2, [0.3, 0.2, 0.09]);
+    }
     if (!noCol) col.box(x0, x1, z0, z1);
   }
   const shopCols = [[1.7, 1.15, 0.6], [1.1, 1.4, 1.8], [1.8, 0.55, 1.1], [0.5, 1.6, 0.85], [1.9, 0.95, 0.25], [1.5, 1.3, 1.0]];
