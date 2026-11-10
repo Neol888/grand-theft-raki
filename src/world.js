@@ -395,8 +395,10 @@ export function buildWorld(scene) {
     const x = 140, z = 30, wh = C(0xf2efe8), rd = C(0x9a3a2a), gold = C(0xe0a81c);
     B.pl.add(new THREE.CylinderGeometry(1, 1.15, 1, 16), M(x, 0.35, z, 4.6, 0.7, 4.6), snow);
     B.pl.box(x - 2.4, x + 2.4, 0.7, 6.4, z - 2.4, z + 2.4, wh, snow);
-    for (const [dx, dz] of [[-2.4, -2.4], [2.4, -2.4], [-2.4, 2.4], [2.4, 2.4]]) B.pl.box(x + dx - 0.35, x + dx + 0.35, 0.7, 6.8, z + dz - 0.35, z + dz + 0.35, rd, snow);
-    B.pl.box(x - 2.7, x + 2.7, 6.4, 6.9, z - 2.7, z + 2.7, rd, snow);
+    for (const [dx, dz] of [[-2.4, -2.4], [2.4, -2.4], [-2.4, 2.4], [2.4, 2.4]]) B.pl.box(x + dx - 0.3, x + dx + 0.3, 0.7, 6.5, z + dz - 0.3, z + dz + 0.3, C(0xfbf9f3), snow);
+    B.pl.box(x - 2.55, x + 2.55, 0.7, 1.5, z - 2.55, z + 2.55, rd);
+    B.pl.box(x - 2.7, x + 2.7, 6.4, 6.75, z - 2.7, z + 2.7, rd, snow);
+    for (const s of [-1, 1]) { B.pl.add(boxGeo, M(x, 6.85, z + s * 2.42, 2.3, 2.3, 0.3, 0, 0, Math.PI / 4), wh); B.pl.add(boxGeo, M(x + s * 2.42, 6.85, z, 0.3, 2.3, 2.3, 0, Math.PI / 4, 0), wh); }
     B.pl.add(new THREE.CylinderGeometry(1, 1, 1, 8), M(x, 8.1, z, 1.5, 2.4, 1.5), wh);
     const prof = [[0.05, 0], [1.0, 0.25], [1.25, 0.9], [0.95, 1.7], [0.4, 2.4], [0.08, 3.1]].map(p => new THREE.Vector2(p[0], p[1]));
     B.pl.add(new THREE.LatheGeometry(prof, 12), M(x, 9.2, z, 1.25, 1.1, 1.25), gold);
