@@ -292,6 +292,7 @@ export class Audio {
     else if (name === 'bell') { for (const [f, v] of [[196, 0.4], [392, 0.2], [587, 0.14], [784, 0.08]]) m._o('sine', f, t, 3.2, v, { w: 2 }); m._n(t, 0.05, 0.2, 'highpass', 2000); }
     else if (name === 'boom') { m._o('sine', 120, t, 0.5, 0.5, { to: 35 }); m._n(t, 0.7, 0.22, 'lowpass', 1400, { w: 1 }); m._n(t + 0.1, 0.9, 0.06, 'highpass', 5000, { w: 2 }); }
     else if (name === 'crash') { m._n(t, 0.16, 0.3, 'bandpass', 1800, { q: 0.5 }); m._o('triangle', 320, t, 0.12, 0.2, { to: 120 }); m._n(t + 0.03, 0.25, 0.12, 'highpass', 4500, { w: 1 }); }
+    else if (name === 'squeak') m._o('sine', 900, t, 0.11, 0.16, { to: 1750 });
     else if (name === 'radio') { m._n(t, 0.12, 0.1, 'bandpass', 2400, { q: 1.5 }); m._o('sine', 1700, t + 0.02, 0.06, 0.05, { to: 900 }); }
   }
   // офлайн-рендер темы для проверки уровней (используется только в отладке)

@@ -86,7 +86,7 @@ function applyQuality() {
   const sh = world.moon.shadow;
   world.moon.castShadow = q.shadow > 0;
   if (q.shadow && sh.mapSize.x !== q.shadow) { sh.mapSize.set(q.shadow, q.shadow); if (sh.map) { sh.map.dispose(); sh.map = null; } }
-  world.mirror.visible = world.bridgesM.visible = world.streaks.visible = q.mirror;
+  world.mirror.visible = world.bridgesM.visible = world.streaks.visible = q.mirror; if (pedMesh) pedMesh.visible = q.mirror;
   snow.density(q.snow);
   const a = innerWidth / innerHeight; camera.aspect = a; baseFov = a >= 1.3 ? 58 : Math.min(88, 2 * Math.atan(Math.tan(29 * Math.PI / 180) * 1.3 / a) * 180 / Math.PI);
 }
@@ -154,6 +154,7 @@ function updateMenu(dt) {
   camera.lookAt(150.2 + 0.477 * sh, port ? 0.1 : short ? 1.25 : 0.2, -30.2 + 0.879 * sh); camera.fov = port ? 48 : short ? 30 : 44; camera.updateProjectionMatrix();
   for (const c of S.cars) if (c.ai) driveTraffic(c, dt, 1e5, 1e5);
   world.setShadowCenter(150, -30);
+  updatePeds(dt);
   dyn.begin(); carGlows(); npcGlow(r); dyn.end();
 }
 
@@ -225,6 +226,41 @@ function updateProps(dt) {
     if (p.st === 1) { p.vy -= 22 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.a += p.sp * dt; if (p.y < 0 && p.vy < 0) { p.st = 2; spray.burst(p.x, 0.3, p.z, 10, 3, 0.5, 0.6, 0.65, 0.8); } setProp(p); dirty |= 1 << p.t; }
   }
   for (let t = 0; t < 3; t++) if (dirty & (1 << t)) propMesh[t].instanceMatrix.needsUpdate = true;
+}
+
+// ---------- раки-прохожие: один InstancedMesh, без коллизий; от машины отпрыгивают, на счёт не влияют ----------
+const PEDS = []; let pedMesh = null, pedSq = 0;
+(function buildPeds() {
+  const b = new Batch(), sph = new THREE.SphereGeometry(1, 8, 6), cone = new THREE.ConeGeometry(1, 1, 6), w = [1, 1, 1], dk = [0.55, 0.55, 0.55], wh = [1.7, 1.7, 1.7], bl = [0.04, 0.04, 0.04];
+  b.add(sph, M(0, 0.9, 0, 0.4, 0.52, 0.36), w); b.add(sph, M(0, 1.5, 0.02, 0.36, 0.3, 0.33), w); b.add(sph, M(0, 0.5, -0.25, 0.3, 0.2, 0.28), dk);
+  for (const s of [-1, 1]) { b.add(sph, M(s * 0.17, 1.95, 0.14, 0.09, 0.09, 0.09), wh); b.add(sph, M(s * 0.17, 1.955, 0.215, 0.045, 0.045, 0.03), bl); b.add(sph, M(s * 0.55, 1.05, 0.3, 0.17, 0.22, 0.14), w); b.add(cone, M(s * 0.55, 1.12, 0.52, 0.1, 0.34, 0.08, 0, Math.PI / 2 - 0.25), w); b.add(sph, M(s * 0.17, 0.12, 0.06, 0.12, 0.07, 0.18), dk); }
+  const n = 14, R = rng(1911), cols = [0xc8402e, 0xd8623a, 0xb0407a, 0xcf5a33, 0xa83a2a, 0xe07a4a, 0x8a4ab0, 0x3a8ab0];
+  pedMesh = new THREE.InstancedMesh(b.build(), world.mPL, n); pedMesh.frustumCulled = false; pedMesh.castShadow = true; scene.add(pedMesh);
+  const bs = world.blocks.filter(q => ['classic', 'panel', 'opera', 'mall', 'park', 'palace'].includes(q.type) && q.ci >= 2);
+  for (let i = 0; i < n; i++) {
+    const q = bs[Math.floor(R() * bs.length)], ns = R() < 0.5, far = R() < 0.5;
+    const p = ns ? { ax: q.x0 + 2, az: far ? q.z1 - 1.3 : q.z0 + 1.3, bx: q.x1 - 2, bz: far ? q.z1 - 1.3 : q.z0 + 1.3 } : { ax: far ? q.x1 - 1.3 : q.x0 + 1.3, az: q.z0 + 2, bx: far ? q.x1 - 1.3 : q.x0 + 1.3, bz: q.z1 - 2 };
+    PEDS.push(Object.assign(p, { u: R(), dir: R() < 0.5 ? 1 : -1, sp: 1.2 + R() * 0.9, y: 0, vy: 0, ox: 0, oz: 0, jx: 0, jz: 0, ph: R() * 6 }));
+    pedMesh.setColorAt(i, new THREE.Color(cols[i % cols.length]));
+  }
+})();
+function updatePeds(dt) {
+  if (!pedMesh.visible) return;
+  const car = S.state === 'play' && S.mode === 'car' ? S.car : null;
+  for (let i = 0; i < PEDS.length; i++) {
+    const p = PEDS[i], lx = p.bx - p.ax, lz = p.bz - p.az, len = Math.hypot(lx, lz);
+    p.u += p.dir * p.sp * dt / len; if (p.u > 1) { p.u = 1; p.dir = -1; } else if (p.u < 0) { p.u = 0; p.dir = 1; }
+    const x = p.ax + lx * p.u + p.ox, z = p.az + lz * p.u + p.oz;
+    if (car && p.y === 0 && car.speed > 3) {
+      const dx = x - car.e.x, dz = z - car.e.z, d = Math.hypot(dx, dz);
+      if (d < 5.5) { p.vy = 7; p.jx = dx / (d || 1) * 5; p.jz = dz / (d || 1) * 5; if (S.time > pedSq) { pedSq = S.time + 0.7; audio.play('squeak'); } if (!S.flags.ped) { S.flags.ped = 1; sayQ([['sys', 'Прохожий рак отпрыгнул. Здесь никого не давят'], ['geisler', 'Жесть))']]); } }
+    }
+    if (p.vy !== 0 || p.y > 0) { p.vy -= 22 * dt; p.y += p.vy * dt; p.ox += p.jx * dt; p.oz += p.jz * dt; if (p.y <= 0) { p.y = 0; p.vy = 0; } }
+    else { const k = Math.min(1, dt * 0.7); p.ox -= p.ox * k; p.oz -= p.oz * k; }
+    const wv = S.time * 9 + p.ph;
+    _q.setFromEuler(_eu.set(p.y > 0 ? S.time * 8 : 0, Math.atan2(lx * p.dir, lz * p.dir), Math.sin(wv) * 0.1)); _v.set(x, 0.15 + p.y + Math.abs(Math.sin(wv)) * 0.05, z); _sc.setScalar(1); _m4.compose(_v, _q, _sc); pedMesh.setMatrixAt(i, _m4);
+  }
+  pedMesh.instanceMatrix.needsUpdate = true;
 }
 
 // ---------- cars ----------
@@ -642,12 +678,12 @@ function updateHUD(dt) {
 
 // ---------- camera ----------
 function updateCamera(dt) {
-  let tx, ty, tz, dist; cam.manual += dt;
+  let tx, ty, tz, dist, sk = 0; cam.manual += dt;
   if (S.mode === 'car') {
     const c = S.car, sp = c.speed; tx = c.e.x; ty = c.e.y + 1.25; tz = c.e.z; dist = 8.4 + sp * 0.085;
     if (cam.manual > 1.6 && lookId === null) cam.off -= cam.off * damp(2.2, dt);
     cam.yaw += angDiff(cam.yaw, c.h) * damp(3.4 + sp * 0.06, dt);
-    camera.fov = baseFov + clamp(sp * 0.26, 0, 9);
+    camera.fov = baseFov + clamp(sp * 0.36, 0, 13); sk = Math.max(0, sp - 15) / 17 * 0.05;
   } else {
     tx = P.x; ty = P.y + 1.55; tz = P.z; dist = 6.4; camera.fov = baseFov;
     if (cam.manual > 2.2 && P.walk > 0.3 && lookId === null) cam.yaw += angDiff(cam.yaw, P.h) * damp(1.1, dt);
@@ -660,7 +696,8 @@ function updateCamera(dt) {
   else if (!cam.init) { cam.pos.set(cx, cy, cz); cam.init = true; } else { const a = damp(10, dt); cam.pos.x += (cx - cam.pos.x) * a; cam.pos.y += (cy - cam.pos.y) * a; cam.pos.z += (cz - cam.pos.z) * a; }
   cam.pos.y = Math.max(cam.pos.y, bankH(Math.abs(cam.pos.x)) + 0.7);
   S.shake = Math.max(0, S.shake - dt * 3);
-  camera.position.set(cam.pos.x + (Math.random() - 0.5) * S.shake * 0.5, cam.pos.y + (Math.random() - 0.5) * S.shake * 0.5, cam.pos.z);
+  // лёгкая дрожь на скорости: плавный шум, только камера
+  camera.position.set(cam.pos.x + (Math.random() - 0.5) * S.shake * 0.5 + Math.sin(S.time * 37) * sk, cam.pos.y + (Math.random() - 0.5) * S.shake * 0.5 + Math.sin(S.time * 43 + 1) * sk * 0.8, cam.pos.z + Math.sin(S.time * 29 + 2) * sk * 0.5);
   camera.lookAt(tx + fx * 3, ty + 0.5, tz + fz * 3);
   const fc = DBG.free; if (fc) { camera.position.set(fc[0], fc[1], fc[2]); camera.lookAt(fc[3], fc[4], fc[5]); }
   camera.updateProjectionMatrix();
@@ -672,7 +709,7 @@ function updatePlay(dt) {
   updatePlayer(dt);
   for (const c of S.cars) if (c.ai && c.ai.type === 'traffic') driveTraffic(c, dt, P.x, P.z);
   dyn.begin();
-  updateWanted(dt); updateNPCs(dt); updateMission(dt); updateCollectibles(true); updateProps(dt); carGlows();
+  updateWanted(dt); updateNPCs(dt); updateMission(dt); updateCollectibles(true); updateProps(dt); updatePeds(dt); carGlows();
   if (world.fire) { const f = world.fire, fl = 0.7 + Math.random() * 0.5; dyn.add(f[0], f[1], f[2], 4.5 * fl, 2.4 * fl, 0.9 * fl, 0.2); if (Math.random() < 0.3) spray.emit(f[0], f[1], f[2], (Math.random() - 0.5) * 1.5, 3 + Math.random() * 3, (Math.random() - 0.5) * 1.5, 1.2, 2.5, 0.9, 0.2); }
   if (S.mission && S.mission.id === 'kos' && S.mission.si <= 1) { const a = POI.artifact; dyn.add(a[0], 1.4 + Math.sin(S.time * 3) * 0.2, a[1], 5, 2.6, 1.3, 0.2); }
   for (const tw of world.towers) dyn.add(tw.x, tw.h + 0.6, tw.z, 4, (S.time * 2 | 0) % 2 ? 2.2 : 0.3, 0.2, 0.15);
@@ -796,6 +833,6 @@ function draw(dt) {
   }
 }
 applyQuality(); buildMenu(); S.state = 'menu'; $('menu').classList.remove('hidden');
-const DBG = { S, P, cam, world, post, renderer, QL: QT, setQ: (n) => { ql = n; applyQuality(); }, finale, startMission, COL, action, startWanted, audio, Audio, THEMES, radioNext, horn, trophy, NODES, step: (n, dt = 1 / 30, noDraw) => { for (let i = 0; i < n; i++) { S.time += dt; tick(dt); } if (!noDraw) draw(dt); } };
+const DBG = { S, P, cam, world, post, renderer, QL: QT, setQ: (n) => { ql = n; applyQuality(); }, finale, startMission, COL, action, startWanted, audio, Audio, THEMES, radioNext, horn, trophy, PEDS, NODES, step: (n, dt = 1 / 30, noDraw) => { for (let i = 0; i < n; i++) { S.time += dt; tick(dt); } if (!noDraw) draw(dt); } };
 if (QS.has('debug')) window.__gtr = DBG;
 requestAnimationFrame(frame);
