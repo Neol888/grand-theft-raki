@@ -229,7 +229,7 @@ export class Audio {
     this.master = c.createGain(); this.master.gain.value = 0.9; Audio.chain(c, this.master, c.destination);
     this.musicG = c.createGain(); this.musicG.gain.value = 0.7; this.musicG.connect(this.master);
     this.music = new Music(c, this.musicG); if (this.want) this.music.setTheme(this.want);
-    this.sfx = c.createGain(); this.sfx.gain.value = 0.9; this.sfx.connect(this.master);
+    this.sfx = c.createGain(); this.sfx.gain.value = 0.65; this.sfx.connect(this.master);
     this.fxm = new Music(c, this.sfx); this.fxm.th = THEMES.dima; // тот же синтезатор для эффектов и клаксонов
     // двигатель, занос, ветер, сирена
     const o1 = c.createOscillator(), o2 = c.createOscillator(), f = c.createBiquadFilter(), g = c.createGain();

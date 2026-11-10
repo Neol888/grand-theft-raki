@@ -190,7 +190,7 @@ export function buildWorld(scene) {
   }
   // neon signs atlas
   const SG = { cv: document.createElement('canvas'), n: 0, slots: {} };
-  SG.cv.width = SG.cv.height = 1024; SG.g = SG.cv.getContext('2d'); SG.g.fillStyle = '#000'; SG.g.fillRect(0, 0, 1024, 1024);
+  SG.cv.width = 1024; SG.cv.height = 2048; SG.g = SG.cv.getContext('2d'); SG.g.fillStyle = '#000'; SG.g.fillRect(0, 0, 1024, 2048);
   function sign(text, css, x, y, z, w, dir, board = true) {
     let s = SG.slots[text + css];
     if (s === undefined) {
@@ -203,7 +203,7 @@ export function buildWorld(scene) {
       g.shadowBlur = 0; g.fillStyle = 'rgba(255,255,255,0.72)'; g.fillText(text, sx + 256, sy + 34);
       g.restore();
     }
-    const u0 = (s % 2) * 0.5, u1 = u0 + 0.5, v1 = 1 - Math.floor(s / 2) / 16, v0 = v1 - 1 / 16, h = w / 8, a = w / 2, hh = h / 2;
+    const u0 = (s % 2) * 0.5, u1 = u0 + 0.5, v1 = 1 - Math.floor(s / 2) / 32, v0 = v1 - 1 / 32, h = w / 8, a = w / 2, hh = h / 2;
     const uv = [[u0, v0], [u1, v0], [u1, v1], [u0, v1]], cw = [1, 1, 1], o = 0.12;
     if (dir === '+z') { B.sg.quad([x - a, y - hh, z + o], [x + a, y - hh, z + o], [x + a, y + hh, z + o], [x - a, y + hh, z + o], cw, uv); if (board) B.pl.box(x - a - 0.2, x + a + 0.2, y - hh - 0.15, y + hh + 0.15, z - 0.1, z + 0.08, dark); }
     else if (dir === '-z') { B.sg.quad([x + a, y - hh, z - o], [x - a, y - hh, z - o], [x - a, y + hh, z - o], [x + a, y + hh, z - o], cw, uv); if (board) B.pl.box(x - a - 0.2, x + a + 0.2, y - hh - 0.15, y + hh + 0.15, z - 0.08, z + 0.1, dark); }
@@ -214,7 +214,8 @@ export function buildWorld(scene) {
     ['КИНОТЕАТР 11.1.4', '#b98cff'], ['ШАУРМА «ПЛОТВА»', '#ff7a3d'], ['БОЖЕ, ХРАНИ ПИРАТОВ', '#ff4f6a'], ['ЦИВА · ЕЩЁ ОДИН ХОД', '#3dffb5'], ['ОПЕРАТИВКА ДЛЯ САНИ', '#3da8ff'],
     ['МЕГАФИГ · СВЯЗЬ К 19-МУ', '#5dff5d'], ['TEKKEN С ДЕТЬМИ', '#ff5d3d'], ['ПОДПИСКА EXTRA', '#5d8bff'], ['НЕ БЕРИ ПОДПИСКУ', '#ff9d3d'], ['КОФЕЙНЯ', '#ffcf8a'],
     ['VR2 · ПРОДАМ', '#c58cff'], ['212 ГБ СВОБОДНО', '#3dfff0'], ['ТЕЛЕКИ · ЖДИ В СБ', '#ffe23d'], ['ЛОМБАРД «144 КАРТОЧКИ»', '#ff5d9d'], ['АТЕЛЬЕ «БАБОЧКА»', '#ffd9a0'],
-    ['БАРБЕРШОП «ДО ЩЕТИНЫ»', '#8affd0'], ['ВСЁ ТАК, ТОЛЬКО НАОБОРОТ', '#ff6ad5']];
+    ['БАРБЕРШОП «ДО ЩЕТИНЫ»', '#8affd0'], ['ВСЁ ТАК, ТОЛЬКО НАОБОРОТ', '#ff6ad5'],
+    ['МЕСЯЦ…', '#ff9d3d'], ['21 ДЕНЬ..', '#3df2ff'], ['ЛЕТС ГОУ', '#6dff8a'], ['ДИМАН, СОРЯН', '#c58cff'], ['ЗБС · ВЭРИ ГУД', '#ffd23d'], ['ЗАКАПЫВАЕМСЯ', '#ff7a3d']];
   let sgi = 0;
   const autoSign = (x, z, dir, len) => { const s = SIGNS[sgi++ % SIGNS.length], w = clamp(len - 6, 6, 12); sign(s[0], s[1], x, 4.7, z + dir * 0.2, w, dir > 0 ? '+z' : '-z'); };
   const firCol = (v) => { const t = smooth((v.y + 0.5) * 1.5 - 0.15); return [lerp(0.012, 0.8, t), lerp(0.05, 0.86, t), lerp(0.03, 0.95, t)]; };
@@ -428,6 +429,20 @@ export function buildWorld(scene) {
     sign('ТА САМАЯ ИГРА', '#ff4fd8', x - 0.3, 10.2, z, 15, '-x', false); sign('19.11.2026 · 212 ГБ', '#3df2ff', x - 0.3, 7.8, z, 15, '-x', false);
     sign('ТА САМАЯ ИГРА', '#ff4fd8', x + 0.3, 10.2, z, 15, '+x', false); sign('ОСВОБОДИ МЕСТО', '#ffd23d', x + 0.3, 7.8, z, 15, '+x', false);
   }
+  // билборды с цитатами из чата вдоль набережных
+  const bcol = ['#ff4fd8', '#3df2ff', '#ffd23d', '#6dff8a'];
+  const billboard = (x, z, a1, a2, b1, b2, k) => {
+    beam(B.pl, [x, 0.15, z - 5], [x, 9, z - 5], 0.22, dark); beam(B.pl, [x, 0.15, z + 5], [x, 9, z + 5], 0.22, dark);
+    B.pl.box(x - 0.25, x + 0.25, 5.5, 12, z - 8.5, z + 8.5, dark); col.circle(x, z - 5, 0.4); col.circle(x, z + 5, 0.4);
+    sign(a1, bcol[k % 4], x - 0.3, 10.2, z, 15, '-x', false); sign(a2, bcol[(k + 1) % 4], x - 0.3, 7.8, z, 15, '-x', false);
+    sign(b1, bcol[(k + 2) % 4], x + 0.3, 10.2, z, 15, '+x', false); sign(b2, bcol[(k + 3) % 4], x + 0.3, 7.8, z, 15, '+x', false);
+    glow(x, 12.4, z, 3, [0.9, 0.8, 0.6]);
+  };
+  billboard(-58, -10, 'ПЕЙ ПИВО', 'РУКИ ДОЛЖНЫ БЫТЬ В РЫБЕ', 'БОЖЕ, ХРАНИ ПИРАТОВ', 'АМИНЬ', 0);
+  billboard(-58, 70, 'ДАВНО НЕ ВОЕВАЛИ', 'ГОУ ВСЕ НА ВОЙНУ', 'ПОТЕРПИ ЧУТЬ-ЧУТЬ!!', 'ОНО СТОИТ ТОГО В 20 КРАТ', 1);
+  billboard(-58, -130, 'КАК РАЗ К 19-МУ', 'ДОКАЧАЕТСЯ', 'БАТЯ В ЗДАНИИ!', 'ВРЕМЕНИ ТУПО НЕТ', 2);
+  billboard(58, 150, 'ВКЛЮЧИЛ, ВЫКЛЮЧИЛ', 'ДВА ДНЯ ПРОШЛО', 'ЧТО ЭТО?', 'ЧАТ ВЛАДЕЛЬЦЕВ PS5', 3);
+  billboard(58, -130, 'ОЧЕНЬ ПЛОХОЕ СООБЩЕНИЕ', 'ОНО МНЕ ОЧЕНЬ НЕ НРАВИТСЯ', 'КРОМЕ LOA И RDR', 'НИЧЕГО НЕ ЗАЕБИСЬ', 0);
   // skyline ring
   for (let i = 0; i < 90; i++) {
     const a = R() * Math.PI * 2, rad = 330 + R() * 240, x = Math.cos(a) * rad * 1.3, z = Math.sin(a) * rad;

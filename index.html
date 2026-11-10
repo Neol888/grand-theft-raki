@@ -85,7 +85,8 @@ button{font:inherit;color:inherit;border:0;cursor:pointer;touch-action:manipulat
 #score{font-size:clamp(20px,4.2vmin,30px);font-weight:900;color:var(--gold);font-variant-numeric:tabular-nums;line-height:1.05}
 #coll{font-size:clamp(10.5px,2vmin,13px);opacity:.9;font-variant-numeric:tabular-nums;white-space:nowrap}
 #wanted{padding:5px 14px;border-radius:999px;font-size:clamp(11px,2.2vmin,14px);font-weight:800;color:#8fc0ff;border-color:rgba(90,150,255,.6);box-shadow:0 0 18px rgba(60,120,255,.5);animation:tk .4s steps(2) infinite}
-#btns{position:absolute;right:calc(8px + var(--sr));top:calc(78px + var(--st));display:flex;gap:8px}
+#btns{position:absolute;right:calc(8px + var(--sr));top:calc(78px + var(--st));display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:110px}
+@media (min-width:700px){#btns{max-width:none}}
 #btns button,.tb{width:46px;height:46px;border-radius:50%;font-size:20px;background:rgba(10,14,26,.62);border:1px solid rgba(255,255,255,.16)}
 #feed{position:absolute;left:calc(10px + var(--sl));bottom:calc(14px + var(--sb));width:min(330px,44vw);display:flex;flex-direction:column;gap:6px;justify-content:flex-end}
 .msg{display:flex;gap:8px;align-items:flex-end;animation:in .25s ease-out,out .5s ease-in 9s forwards}
@@ -97,6 +98,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer;touch-action:manipulat
 .voice{display:flex;align-items:center;gap:7px;min-width:150px}
 .voice .p{width:26px;height:26px;border-radius:50%;background:#4aa3f0;display:grid;place-items:center;font-size:11px;flex:0 0 26px}
 .voice .w{flex:1;height:18px;background:repeating-linear-gradient(90deg,#6f8fb5 0 2px,transparent 2px 4px);-webkit-mask:linear-gradient(90deg,#000 0%,#0006 30%,#000 55%,#0004 80%,#000 100%);mask:linear-gradient(90deg,#000 0%,#0006 30%,#000 55%,#0004 80%,#000 100%);border-radius:3px}
+.voice{cursor:pointer}.voice.heard .u{visibility:hidden}.voice.heard .p{background:#6f8fb5}
 .voice .d{font-size:11px;opacity:.7}.voice .u{width:7px;height:7px;border-radius:50%;background:#4aa3f0}
 @keyframes in{from{opacity:0;transform:translateY(10px)}}
 @keyframes out{to{opacity:0;transform:translateX(-14px)}}
@@ -106,6 +108,11 @@ button{font:inherit;color:inherit;border:0;cursor:pointer;touch-action:manipulat
 #big small{display:block;font-size:.5em;color:var(--gold);font-style:normal;text-shadow:0 2px 10px #000}
 #big.show{animation:big 2.4s ease-out forwards}
 @keyframes big{0%{opacity:0;transform:translate(-50%,-50%) scale(.7)}12%{opacity:1;transform:translate(-50%,-50%) scale(1.06)}20%{transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-62%)}}
+#tro{position:absolute;left:50%;bottom:calc(30% + var(--sb));transform:translate(-50%,20px);display:flex;align-items:center;gap:10px;padding:8px 16px 8px 10px;border-radius:999px;border-color:rgba(255,200,61,.7);box-shadow:0 0 22px rgba(255,61,138,.45);opacity:0;white-space:nowrap;max-width:92vw}
+#tro .ic{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:19px;background:radial-gradient(circle at 35% 30%,#ffd9a0,#ff3d8a)}
+#tro b{display:block;font-size:14px;color:var(--gold)}#tro i{display:block;font-style:normal;font-size:12px;opacity:.85}
+#tro.show{animation:tro 3.6s ease-out forwards}
+@keyframes tro{0%{opacity:0;transform:translate(-50%,20px)}8%{opacity:1;transform:translate(-50%,0)}85%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-10px)}}
 #speak{position:absolute;left:50%;top:58%;transform:translateX(-50%);max-width:min(440px,80vw);padding:8px 14px;border-radius:14px;font-size:14px;text-align:center;opacity:0;transition:opacity .3s}
 #speak b{color:var(--gold)}
 
@@ -199,12 +206,13 @@ button{font:inherit;color:inherit;border:0;cursor:pointer;touch-action:manipulat
   <canvas id="map" width="300" height="300"></canvas>
   <div id="top"><div id="timerbox" class="glass"><div class="lbl">ДО РЕЛИЗА</div><div id="timer">06:00</div></div><div id="obj" class="glass"><span id="arrow">▲</span><span id="objtext">Жди сообщений в чате</span><span id="dist"></span></div><div id="wanted" class="glass hidden">🚨 МОДЕРАТОРЫ PS · <span id="wt"></span></div></div>
   <div id="stats" class="glass"><div id="score">0</div><div id="coll">🃏 0/144 · 🪶 0/6 · 🌸 0/6</div></div>
-  <div id="btns"><button id="bPhone" aria-label="Чат">💬</button><button id="bMute" aria-label="Звук">🔊</button></div>
+  <div id="btns"><button id="bRadio" aria-label="Радио">📻</button><button id="bHorn" aria-label="Клаксон">📯</button><button id="bPhone" aria-label="Чат">💬</button><button id="bMute" aria-label="Звук">🔊</button></div>
   <div id="feed"></div>
   <div id="speak" class="glass"></div>
   <div id="prompt" class="glass hidden"></div>
   <div id="place"></div>
   <div id="big"></div>
+  <div id="tro" class="glass"></div>
   <div id="touch"><div id="stick"><div id="knob"></div></div><button id="bAct">🚪</button><button id="bHand">РУЧНИК</button></div>
 </div>
 
@@ -223,6 +231,6 @@ button{font:inherit;color:inherit;border:0;cursor:pointer;touch-action:manipulat
 <div id="lbm" class="hidden"><div class="box glass"><div id="lbmc" class="lb"></div><button class="pill alt" id="lbmx">Закрыть</button></div></div>
 <div id="fade"></div><div id="err"></div>
 <script>window.addEventListener('error',function(e){var d=document.getElementById('err');if(d)d.textContent+=(e.message||e)+'\n';});</script>
-<script src="game.js?v=mwb1qr8y"></script>
+<script src="game.js?v=mwb1v0ie"></script>
 </body>
 </html>

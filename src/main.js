@@ -97,7 +97,7 @@ addEventListener('orientationchange', () => setTimeout(applyQuality, 250));
 // ---------- chat ----------
 const feed = $('feed'), plog = $('plog');
 const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-const voiceHTML = (sec) => `<div class="voice"><div class="p">▶</div><div class="w"></div><div class="d">${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}</div><div class="u"></div></div>`;
+const voiceHTML = (sec) => `<div class="voice" data-sec="${sec}"><div class="p">▶</div><div class="w"></div><div class="d">${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}</div><div class="u"></div></div>`;
 function msgEl(from, body) {
   const me = from === S.pid, el = document.createElement('div'); el.className = 'msg' + (me ? ' me' : '') + (from === 'sys' ? ' sys' : '');
   if (from === 'sys') el.innerHTML = `<div class="b">${esc(body)}</div>`;
@@ -135,7 +135,7 @@ function buildMenu() {
   $('blb').onclick = () => { audio.init(); openBoard(); };
   $('lbmx').onclick = () => $('lbm').classList.add('hidden');
   $('lbm').onclick = (e) => { if (e.target === $('lbm')) $('lbm').classList.add('hidden'); };
-  $('hint').textContent = isTouch ? 'Левый палец — руль и газ · правый — камера · 🚪 выйти из машины · звук включится после касания' : 'WASD — ехать · Пробел — ручник · E — выйти / сесть · мышь с зажатой кнопкой — камера · T — чат · M — звук';
+  $('hint').textContent = isTouch ? 'Левый палец — руль и газ · правый — камера · 🚪 выйти из машины · звук включится после касания' : 'WASD — ехать · Пробел — ручник · E — выйти / сесть · R — радио · H — клаксон · мышь с зажатой кнопкой — камера · T — чат';
   if (isTouch) $('hint').textContent = 'Левый палец — руль и газ · правый — камера · 🚪 выйти из машины · красивее всего — повернув телефон горизонтально';
   select(sel);
 }
@@ -192,7 +192,7 @@ function collect(c) {
     st.cards += 6; addScore(30);
     if (st.cards === 6 && S.pid !== 'igor') sayQ([['igor', 'Мне 144 карточки в рдр надо найти'], ['geisler', 'До выхода гта 6 ?'], ['igor', 'Ага']]);
     if (st.cards === 72) sayQ([['igor', 'Неделю ебучих птиц собирал😓 Настало время ахуенных карточек)']]);
-    if (st.cards % 144 === 0) { S.acc++; addScore(500); showBig('144 из 144', '+500 · и всё заново'); sayQ([['igor', 'У меня новый аккаунт и мне надо закрыть рдр на 100% на нем))'], ['artem', 'Пока ее Игорь пройдёт на 100% несколько раз)']]); for (const k of COL) if (k.type === 0) k.got = false; }
+    if (st.cards % 144 === 0) { trophy('cards'); S.acc++; addScore(500); showBig('144 из 144', '+500 · и всё заново'); sayQ([['igor', 'У меня новый аккаунт и мне надо закрыть рдр на 100% на нем))'], ['artem', 'Пока ее Игорь пройдёт на 100% несколько раз)']]); for (const k of COL) if (k.type === 0) k.got = false; }
   } else if (c.type === 1) { st.feathers++; addScore(120); if (st.feathers === 6) sayQ([['igor', 'Самое пиздец что я собрал все перья цапель'], ['geisler', 'А зачем второй раз?)😅']]); }
   else { st.orchids++; addScore(120); if (st.orchids === 6) sayQ([['geisler', 'Ты их уже находил, но просто не помнишь куда сложил)']]); }
   $('coll').textContent = `🃏 ${st.cards % 144 || (st.cards ? 144 : 0)}/144${S.acc > 1 ? ' (акк №' + S.acc + ')' : ''} · 🪶 ${st.feathers}/6 · 🌸 ${st.orchids}/6`;
@@ -226,7 +226,7 @@ addEventListener('keydown', (e) => {
   if (!$('lbm').classList.contains('hidden')) { if (e.code === 'Escape' || e.code === 'Enter') $('lbm').classList.add('hidden'); return; }
   if (S.state === 'menu') { if (e.code === 'ArrowLeft' || e.code === 'KeyA') $('prev').onclick(); else if (e.code === 'ArrowRight' || e.code === 'KeyD') $('next').onclick(); else if (e.code === 'Enter' || e.code === 'Space') startGame(); return; }
   if (S.state !== 'play') return;
-  if (e.code === 'KeyE' || e.code === 'KeyF' || e.code === 'Enter') action(); else if (e.code === 'KeyT' || e.code === 'Tab') togglePhone(); else if (e.code === 'KeyM') toggleMute();
+  if (e.code === 'KeyE' || e.code === 'KeyF' || e.code === 'Enter') action(); else if (e.code === 'KeyT' || e.code === 'Tab') togglePhone(); else if (e.code === 'KeyM') toggleMute(); else if (e.code === 'KeyR') radioNext(); else if (e.code === 'KeyH') horn();
 });
 addEventListener('keyup', (e) => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
@@ -258,7 +258,42 @@ const tap = (el, fn) => el.addEventListener('pointerdown', (e) => { e.preventDef
 tap($('bAct'), () => action());
 $('bHand').addEventListener('pointerdown', (e) => { e.preventDefault(); handHeld = true; $('bHand').classList.add('on'); });
 for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) $('bHand').addEventListener(ev, () => { handHeld = false; $('bHand').classList.remove('on'); });
+tap($('bRadio'), () => radioNext()); tap($('bHorn'), () => horn());
 tap($('bPhone'), () => togglePhone()); tap($('bMute'), () => toggleMute()); tap($('pclose'), () => togglePhone());
+// ---------- радио, клаксон, голосовые ----------
+const RADIO = { arkasha: 'свинг в бабочке. До релиза осталось…', max: 'фонк и голосовые. Никто не слушает', dima: 'синтвейв в 11.1.4. Сгенерировано', igor: 'вестерн. Четвёртое прохождение', geisler: 'клавесин через Мегафон. Буферизация…', pasha: 'венский вальс. Кроме него ничего не заебись', nikita: 'чиптюн из его третьей игры', kos: 'эмбиент Зоны. Треск — это нормально', artem: 'пиратская джига. Боже, храни пиратов', sanya: 'лоу-фай. Начало тягомотное, потерпи', misha: 'укулеле у костра. Времени слушать нет' };
+const HORN = { arkasha: 'Все так, только наоборот', max: 'Очень плохое сообщение', dima: 'Гоу все на войну', igor: 'Мне 144 карточки надо найти', geisler: 'Батя в здании!)', pasha: 'Скорее бы ГТА', nikita: 'Что это?', kos: 'На Сергея столик', artem: 'Боже, храни пиратов, аминь', sanya: 'Она вначале дико медленная', misha: 'Времени тупо нет (' };
+function bubble(html, ms = 3000) { const e = $('speak'); e.innerHTML = html; e.style.opacity = 1; clearTimeout(bubble.t); bubble.t = setTimeout(() => { e.style.opacity = 0; }, ms); speakT = S.time + ms / 1000; }
+function radioNext() {
+  if (S.state !== 'play') return;
+  const ids = [null].concat(RAKI.map(r => r.id)); S.radio = ids[(ids.indexOf(S.radio) + 1) % ids.length];
+  audio.play('radio'); audio.setTheme(S.radio || (S.mission ? S.mission.def.giver : S.pid));
+  prompt(S.radio ? '📻 Радио ' + BY_ID[S.radio].name + ': ' + RADIO[S.radio] : '📻 Авто: твоя тема, на поручении — тема заказчика', 3.4);
+  if (S.radio) { S.heard[S.radio] = 1; if (Object.keys(S.heard).length >= RAKI.length) trophy('radio'); }
+}
+let hornT = 0;
+function horn() {
+  if (S.state !== 'play' || S.time < hornT) return; hornT = S.time + 0.7;
+  audio.horn(S.pid); bubble('<b>' + esc(pname) + ':</b> ' + esc(HORN[S.pid] || 'Би-бип'), 1800);
+  for (const c of S.cars) if (c.ai && c.ai.type === 'traffic' && Math.hypot(c.e.x - P.x, c.e.z - P.z) < 16) c.stun = 1.3;
+  for (const n of S.npcs) if (Math.hypot(n.x - P.x, n.z - P.z) < 14) n.talk = 1.6;
+  S.horns = (S.horns || 0) + 1; if (S.horns >= 10) trophy('horn');
+}
+document.addEventListener('pointerdown', (e) => {
+  const v = e.target.closest && e.target.closest('.voice'); if (!v) return;
+  audio.init(); audio.mumble(+v.dataset.sec || 10); v.classList.add('heard');
+  if (S.state === 'play') { if (!S.flags.voice) { S.flags.voice = 1; sayQ([['sys', 'Ты послушал голосовое Макса. Первый за всю историю чата']]); } trophy('voice'); }
+});
+// трофеи: очков не дают, только повод посмеяться; оформление своё
+const TROPHIES = { what: ['Что это?', 'начал партию'], ice: ['Руки в рыбе', 'выехал на лёд Оби'], speed: ['11.1.4', 'разогнался до 111,4 км/ч'], rev: ['Всё так, только наоборот', 'четыре секунды ехал задом'],
+  steal: ['Боже, храни пиратов', 'угнал машину'], voice: ['Никто не слушает', 'послушал голосовое Макса'], crash: ['Самый кайф в разрушениях', 'въехал как следует'], zap: ['В аномалии не лезь', 'залез в аномалию'],
+  esc: ['Лавочку не прикрыли', 'ушёл от модераторов'], ban: ['П2 или П3?', 'получил бан'], cards: ['144 из 144', 'собрал все карточки Игоря'], radio: ['Меломан', 'послушал все одиннадцать станций'],
+  horn: ['Очень плохое сообщение', 'посигналил десять раз'], slow: ['Потерпи чуть-чуть', 'перетерпел тягомотное начало'], bati: ['Батя в здании', 'успел к Мише вовремя'], dance: ['Закапываемся', 'станцевал пешком'], beam: ['BeamNG', 'снёс десять предметов'] };
+function trophy(id) {
+  if (S.state !== 'play' || !S.tro || S.tro[id] || !TROPHIES[id]) return; S.tro[id] = 1; const T = TROPHIES[id], e = $('tro');
+  e.innerHTML = '<span class="ic">🦀</span><span><b>Трофей: ' + esc(T[0]) + '</b><i>' + esc(T[1]) + '</i></span>'; e.classList.remove('show'); void e.offsetWidth; e.classList.add('show'); audio.sting('trophy');
+  try { const all = JSON.parse(localStorage.getItem('gtr_tro') || '{}') || {}; all[id] = 1; localStorage.setItem('gtr_tro', JSON.stringify(all)); } catch (er) { /* ignore */ }
+}
 function togglePhone() { $('phone').classList.toggle('hidden'); plog.scrollTop = 1e9; }
 function toggleMute() { audio.setMuted(!audio.muted); $('bMute').textContent = audio.muted ? '🔇' : '🔊'; }
 function controls() {
@@ -294,7 +329,7 @@ function startGame() {
       for (const id of pool) seen[id] = (seen[id] || 0) + 1;
       try { localStorage.setItem('gtr_seen', JSON.stringify(seen)); } catch (e) { /* ignore */ }
     }
-    S.queue = pool; S.run = pool.slice(); S.done = {}; S.stats.total = pool.length; S.radio = null; audio.setTheme(S.pid);
+    S.queue = pool; S.run = pool.slice(); S.done = {}; S.stats.total = pool.length; S.radio = null; S.heard = {}; S.horns = 0; S.tro = {}; audio.setTheme(S.pid);
     S.state = 'play'; S.t = 0; grace = 4; bad = 0; applyQuality(); $('fade').style.opacity = 0;
     showBig('23:54', 'До релиза шесть минут');
     prompt(isTouch ? 'Левый палец — руль и газ · правый — камера' : 'WASD — ехать · Пробел — ручник · E — выйти из машины', 7);
@@ -318,6 +353,10 @@ function updatePlayer(dt) {
     }
     c.sync(); P.x = e.x; P.z = e.z; P.y = e.y; P.layer = e.layer; P.h = c.h;
     // чат реагирует на то, как ты водишь
+    if (hit > 15) trophy('crash');
+    if (e.layer === 2) trophy('ice');
+    if (c.speed * 3.6 >= 111.4) trophy('speed');
+    S.revT = c.vf < -3 ? (S.revT || 0) + dt : 0; if (S.revT > 4) trophy('rev');
     if (hit > 15 && !S.flags.crash) { S.flags.crash = 1; sayQ([['max', 'Очень плохое сообщение. Оно мне очень не нравится']]); }
     if (e.layer === 2 && !S.flags.ice) { S.flags.ice = 1; sayQ([['igor', 'На льду перья цапель лежат. Я проверял'], ['geisler', 'А зачем второй раз?)😅']]); }
     if (c.slip > 8 && c.speed > 13) { S.driftT = (S.driftT || 0) + dt; if (S.driftT > 0.7 && !S.flags.drift) { S.flags.drift = 1; sayQ([['max', 'Оч залипательная)) Там самый кайф в разрушениях']]); } }
@@ -358,7 +397,7 @@ function updatePlayer(dt) {
   // anomalies
   for (const a of world.anomalies) {
     if (Math.hypot(P.x - a.x, P.z - a.z) < a.r + (S.mode === 'car' ? 1.2 : 0.3) && P.y < 2 && S.t - (S.zapT || 0) > 1.2) {
-      S.zapT = S.t; audio.play('zap'); S.shake = 1; post.mFinal.uniforms.uFlash.value = 0.5; spray.burst(a.x, 2, a.z, 40, 10, 0.9, 0.6, 2.2, 1.2);
+      S.zapT = S.t; trophy('zap'); audio.play('zap'); S.shake = 1; post.mFinal.uniforms.uFlash.value = 0.5; spray.burst(a.x, 2, a.z, 40, 10, 0.9, 0.6, 2.2, 1.2);
       const ang = Math.atan2(P.x - a.x, P.z - a.z) + (Math.random() - 0.5);
       if (S.mode === 'car') { S.car.e.vx = Math.sin(ang) * 16; S.car.e.vz = Math.cos(ang) * 16; S.car.launch(13); } else { P.vx = Math.sin(ang) * 13; P.vz = Math.cos(ang) * 13; P.vy = 12; P.y += 0.4; }
       if (!S.flags.zap) { S.flags.zap = 1; sayQ([['kos', 'Я же сказал: в аномалии не лезь'], ['dima', 'Это не баг. Это новая реальность)']]); }
@@ -377,7 +416,7 @@ function action() {
   } else {
     const c = nearestCar(5); if (!c) return;
     if (c.ai) {
-      c.ai = null; c.stun = 0; S.stats.stolen++; addScore(60); showBig('УГОН', '+60 · теперь ты как типы');
+      c.ai = null; c.stun = 0; S.stats.stolen++; trophy('steal'); addScore(60); showBig('УГОН', '+60 · теперь ты как типы');
       if (S.stats.stolen === 1) sayQ([['sys', 'Сигналка орёт голосом Макса. Никто не слушает'], ['max', { voice: 23 }]]);
       startWanted(15);
     }
@@ -414,7 +453,7 @@ function startWanted(sec) {
 function endWanted(escaped) {
   S.wanted = 0; S.caught = 0; $('wanted').classList.add('hidden');
   for (const m of S.mods) { scene.remove(m.g); S.cars.splice(S.cars.indexOf(m), 1); } S.mods.length = 0;
-  if (escaped) { addScore(150); showBig('ОТОРВАЛСЯ', '+150'); if (!S.flags.esc) { S.flags.esc = 1; sayQ([['geisler', 'Меня удивляет почему пс до сих пор эту лавочку не прикрыли))']]); } }
+  if (escaped) { trophy('esc'); addScore(150); showBig('ОТОРВАЛСЯ', '+150'); if (!S.flags.esc) { S.flags.esc = 1; sayQ([['geisler', 'Меня удивляет почему пс до сих пор эту лавочку не прикрыли))']]); } }
 }
 function updateWanted(dt) {
   if (S.wanted <= 0) return;
@@ -431,7 +470,7 @@ function updateWanted(dt) {
   }
   S.caught = close ? S.caught + dt : Math.max(0, S.caught - dt * 0.5);
   if (S.caught > 1.0 && !S.modal) {
-    S.stats.bans++; audio.play('bad'); S.shake = 1; const q = QUIZ[Math.floor(Math.random() * QUIZ.length)];
+    S.stats.bans++; trophy('ban'); audio.play('bad'); S.shake = 1; const q = QUIZ[Math.floor(Math.random() * QUIZ.length)];
     if (S.mode === 'car') { S.car.e.vx = S.car.e.vz = 0; }
     openChoice({ title: '🚨 БАН! Вопрос от модератора', text: q[0], opts: [{ label: q[1] }, { label: q[2] }] }, () => {
       sayQ([['arkasha', 'Все так, только наоборот'], ['sys', 'Бан: −8 секунд и −150 очков']]); S.left = Math.max(3, S.left - 8); addScore(-150); S.busy = 0.4; endWanted(false);
@@ -487,7 +526,7 @@ function endMission() {
 }
 function finishMission() {
   const M = S.mission, tb = M.lost ? 0 : Math.max(0, Math.round((M.def.par - (S.t - M.t0)) * 8)), total = Math.round(M.def.reward * (M.lost ? 0.4 : 1)) + M.bonus + tb;
-  S.done[M.id] = M.lost ? '≈' : '✔';
+  S.done[M.id] = M.lost ? '≈' : '✔'; if (M.id === 'sanya') trophy('slow'); if (M.id === 'misha') trophy('bati');
   addScore(total); S.stats.missions++; showBig((M.lost ? '≈ ' : '✔ ') + M.def.title, '+' + total + (tb ? ' · за скорость +' + tb : '')); audio.play('win'); sayQ(M.lost && M.def.outroLost ? M.def.outroLost : M.def.outro);
   endMission();
 }
@@ -597,7 +636,7 @@ function updateCamera(dt) {
 
 // ---------- play loop ----------
 function updatePlay(dt) {
-  S.t += dt; S.left -= dt;
+  S.t += dt; S.left -= dt; if (S.t > 3) trophy('what');
   updatePlayer(dt);
   for (const c of S.cars) if (c.ai && c.ai.type === 'traffic') driveTraffic(c, dt, P.x, P.z);
   dyn.begin();
@@ -667,12 +706,14 @@ function finale() {
   let best = 0; try { best = +(localStorage.getItem('gtr_best') || 0); if (S.score > best) localStorage.setItem('gtr_best', S.score); } catch (e) { /* ignore */ }
   fin = { t: 0, i: 0, fw: 0, rank, best };
   const url = location.origin + location.pathname;
-  const text = `🦀 Grand Theft Raki: Новосибирск\nИграл за: ${pname}\nСчёт: ${S.score} — звание ${rank[1]}\nПоручений: ${st.missions}/${st.total} · карточек Игоря: ${st.cards} из 144 · банов от модераторов: ${st.bans}\n${url}`;
+  const text = `🦀 Grand Theft Raki: Новосибирск\nИграл за: ${pname}\nСчёт: ${S.score} — звание ${rank[1]}\nПоручений: ${st.missions}/${st.total} · карточек Игоря: ${st.cards} из 144 · банов от модераторов: ${st.bans}${Object.keys(S.tro || {}).length ? '\nТрофеи: ' + Object.keys(S.tro).map((id) => TROPHIES[id][0]).join(', ') : ''}\n${url}`;
   $('frank').textContent = rank[1]; $('fscore').textContent = S.score + ' очк.'; $('fnote').innerHTML = esc(rank[2]) + '<br><i>' + esc(ENDING[S.pid] || '') + '</i>';
+  const tro = Object.keys(S.tro || {}).map((id) => TROPHIES[id][0]);
   const run = (S.run || []).map((id) => (S.done[id] || '—') + ' ' + MISSIONS[id].title).join(' · ');
   const rest = ORDER.filter((id) => id !== S.pid && !(S.run || []).includes(id)).map((id) => BY_ID[id].name).join(', ');
   $('fstats').innerHTML = 'Играл за: <b>' + esc(pname) + '</b> · поручений ' + st.missions + '/' + st.total + '<br>' + esc(run)
     + '<br>карточки ' + st.cards + '/144 · перья ' + st.feathers + '/6 · орхидеи ' + st.orchids + '/6 · угонов ' + st.stolen + ' · банов ' + st.bans
+    + (tro.length ? '<br>🦀 Трофеи (' + tro.length + '): ' + esc(tro.join(' · ')) : '')
     + (rest ? '<br><span class="nx">В этот раз не выпали поручения: ' + esc(rest) + '. Сыграй ещё.</span>' : '')
     + (best ? '<br>прошлый рекорд на этом устройстве: ' + best : '');
   $('fcopy').onclick = async () => {
@@ -723,6 +764,6 @@ function draw(dt) {
   }
 }
 applyQuality(); buildMenu(); S.state = 'menu'; $('menu').classList.remove('hidden');
-const DBG = { S, P, cam, world, post, renderer, QL: QT, setQ: (n) => { ql = n; applyQuality(); }, finale, startMission, COL, action, startWanted, audio, Audio, THEMES, NODES, step: (n, dt = 1 / 30, noDraw) => { for (let i = 0; i < n; i++) { S.time += dt; tick(dt); } if (!noDraw) draw(dt); } };
+const DBG = { S, P, cam, world, post, renderer, QL: QT, setQ: (n) => { ql = n; applyQuality(); }, finale, startMission, COL, action, startWanted, audio, Audio, THEMES, radioNext, horn, trophy, NODES, step: (n, dt = 1 / 30, noDraw) => { for (let i = 0; i < n; i++) { S.time += dt; tick(dt); } if (!noDraw) draw(dt); } };
 if (QS.has('debug')) window.__gtr = DBG;
 requestAnimationFrame(frame);
