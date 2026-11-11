@@ -759,7 +759,7 @@ function updateHUD(dt) {
     $('dist').textContent = t; $('dist').classList.toggle('hot', tl >= 0 && tl <= 10);
   }
   S.placeT -= 0.1;
-  for (const L of LANDMARKS) if (Math.hypot(P.x - L.x, P.z - L.z) < L.r && S.lastPlace !== L && S.placeT <= 0) { S.lastPlace = L; S.placeT = 6; const e = $('place'); e.textContent = L.name; e.style.opacity = 1; setTimeout(() => { e.style.opacity = 0; }, 3500); }
+  for (const L of LANDMARKS) if (Math.hypot(P.x - L.x, P.z - L.z) < L.r && S.lastPlace !== L && S.placeT <= 0 && S.t > 3.2) { S.lastPlace = L; S.placeT = 6; const e = $('place'); e.textContent = L.name; e.style.opacity = 1; setTimeout(() => { e.style.opacity = 0; }, 3500); }
 }
 
 // ---------- camera ----------
