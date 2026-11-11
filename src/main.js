@@ -286,7 +286,7 @@ const LEAKS = [[POI.leak1[0] + 1.8, POI.leak1[1] + 1.2], [POI.leak2[0] + 1.8, PO
   exIns = add(LEAKS[0][0], LEAKS[0][1], 0.6, 0x1d2029, 'ins');
   add(-236.2, 169.6, 0, 0x2a4a7a, 'master');
   exMesh = new THREE.InstancedMesh(pedMesh.geometry, world.mPL, EXTRAS.length); exMesh.frustumCulled = false; scene.add(exMesh);
-  EXTRAS.forEach((p, i) => { p.gy = surface({ x: p.x, z: p.z, y: 2 }); exMesh.setColorAt(i, new THREE.Color(p.col)); });
+  EXTRAS.forEach((p, i) => { p.gy = surface({ x: p.x, z: p.z, y: 2 }); p.c = new THREE.Color(p.col); exMesh.setColorAt(i, p.c); });
 })();
 const EXSAY = {
   queue: [['sys', 'Очередь за диском в «ТехноРак». Крайний занял ещё на первом трейлере'], ['pasha', 'Ну обещают без переносов']],
@@ -301,7 +301,7 @@ function updateExtras(dt) {
     if (li !== exIns.li && !exIns.fly) { exIns.fly = 1; exIns.to = li; exIns.vy = 17; exIns.jx = exIns.jz = 0; }
     if (exIns.fly && exIns.vy <= 0) { exIns.x = LEAKS[exIns.to][0]; exIns.z = LEAKS[exIns.to][1]; exIns.ox = exIns.oz = 0; exIns.li = exIns.to; exIns.fly = 0; }
   }
-  let tipNear = false;
+  let tipNear = false, vis = 0; const cpx = camera.position.x, cpz = camera.position.z;
   for (let i = 0; i < EXTRAS.length; i++) {
     const p = EXTRAS[i], x = p.x + p.ox, z = p.z + p.oz, dx = x - P.x, dz = z - P.z, d = play ? Math.hypot(dx, dz) : 99;
     if (d < 11 && !S.flags['ex' + p.kind] && !(p.kind === 'ins' && Mi && Mi.id === 'pasha')) { S.flags['ex' + p.kind] = 1; sayQ(EXSAY[p.kind]); }
@@ -312,11 +312,13 @@ function updateExtras(dt) {
     if (p.kind === 'tip' && !car && d < 3.4) tipNear = true;
     if (p.vy !== 0 || p.y > 0) { p.vy -= 22 * dt; p.y += p.vy * dt; p.ox += p.jx * dt; p.oz += p.jz * dt; if (p.y <= 0) { p.y = 0; p.vy = 0; } }
     else { const k = Math.min(1, dt * 0.7); p.ox -= p.ox * k; p.oz -= p.oz * k; }
+    if ((x - cpx) * (x - cpx) + (z - cpz) * (z - cpz) > 14400) continue; // дальше 120 м не рисуем
     let hop = Math.abs(Math.sin(T * 1.6 + p.ph)) * 0.03, yaw = p.h + Math.sin(T * 0.7 + p.ph) * 0.18;
     if (p.kind === 'queue') { const w = (T * 0.9 - p.k * 0.3) % 7; if (w > 0 && w < 0.5) hop = Math.sin(w * 2 * Math.PI) * 0.4; }
     else if (d < 12) yaw = Math.atan2(-dx, -dz);
-    _q.setFromEuler(_eu.set(p.y > 0.5 ? T * 8 : 0, yaw, Math.sin(T * 2 + p.ph) * 0.05)); _v.set(x, p.gy + 0.15 + p.y + hop, z); _sc.setScalar(1); _m4.compose(_v, _q, _sc); exMesh.setMatrixAt(i, _m4);
+    _q.setFromEuler(_eu.set(p.y > 0.5 ? T * 8 : 0, yaw, Math.sin(T * 2 + p.ph) * 0.05)); _v.set(x, p.gy + 0.15 + p.y + hop, z); _sc.setScalar(1); _m4.compose(_v, _q, _sc); exMesh.setMatrixAt(vis, _m4); exMesh.setColorAt(vis, p.c); vis++;
   }
+  exMesh.count = vis; exMesh.visible = vis > 0; exMesh.instanceColor.needsUpdate = true;
   if (play) { S.tipT = tipNear ? (S.tipT || 0) + dt : 0; if (S.tipT > 2) trophy('tipy'); }
   exMesh.instanceMatrix.needsUpdate = true;
 }
