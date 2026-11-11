@@ -815,7 +815,8 @@ function updatePlay(dt) {
   world.setShadowCenter(P.x, P.z);
   updateCamera(dt); updateHUD(dt);
   // чужая машина, подъехавшая вплотную к камере, не должна закрывать экран
-  for (const c of S.cars) if (c !== S.car) { const dx = c.e.x - camera.position.x, dz = c.e.z - camera.position.z; c.g.visible = dx * dx + dz * dz > 12; }
+  // только попутный трафик: модераторов в погоне и свою машину не прячем никогда
+  for (const c of S.cars) { if (c === S.car || !c.ai || c.ai.type !== 'traffic') { c.g.visible = true; continue; } const dx = c.e.x - camera.position.x, dz = c.e.z - camera.position.z; c.g.visible = dx * dx + dz * dz > 12; }
   if (S.left <= 0) finale();
 }
 
