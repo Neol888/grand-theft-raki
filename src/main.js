@@ -148,12 +148,14 @@ function select(i) {
   for (const q of RAKI) raki[q.id].visible = q.id === r.id;
   const m = raki[r.id]; m.position.set(149.6, 0, -29); m.rotation.set(0, -Math.PI / 2, 0); m.userData.pop = 1; audio.play('tick'); audio.setTheme(r.id);
 }
+let MCAM = [153.7, -23.5, 148.32, -29.42, 0.64]; // камера меню: откуда, куда, поворот рака
 function updateMenu(dt) {
   const r = raki[RAKI[sel].id], t = S.time; r.userData.pop = Math.max(0, (r.userData.pop || 0) - dt * 3);
-  r.rotation.y = -Math.PI / 2 + Math.sin(t * 0.6) * 0.35 + r.userData.pop * 2.5; animRak(r, t, 0, (t % 5) < 1.4);
+  r.rotation.y = MCAM[4] + Math.sin(t * 0.6) * 0.35 + r.userData.pop * 2.5; animRak(r, t, 0, (t % 5) < 1.4);
   const port = camera.aspect < 1, short = !port && innerHeight < 520, sh = short ? 1.9 : 0;
-  camera.position.set(143.2 + Math.sin(t * 0.21) * 0.5 - (port ? 2.5 : 0), 1.5 + Math.sin(t * 0.3) * 0.12, -26.4 + Math.cos(t * 0.17) * 0.5);
-  camera.lookAt(150.2 + 0.477 * sh, port ? 0.1 : short ? 1.25 : 0.2, -30.2 + 0.879 * sh); camera.fov = port ? 48 : short ? 30 : 44; camera.updateProjectionMatrix();
+  const mdx = MCAM[2] - MCAM[0], mdz = MCAM[3] - MCAM[1], ml = Math.hypot(mdx, mdz), bk = port ? 2.5 : 0;
+  camera.position.set(MCAM[0] + Math.sin(t * 0.21) * 0.5 - mdx / ml * bk, 1.5 + Math.sin(t * 0.3) * 0.12, MCAM[1] + Math.cos(t * 0.17) * 0.5 - mdz / ml * bk);
+  camera.lookAt(MCAM[2] - mdz / ml * sh, port ? -0.7 : short ? 1.25 : 0.2, MCAM[3] + mdx / ml * sh); camera.fov = port ? 48 : short ? 30 : 44; camera.updateProjectionMatrix();
   for (const c of S.cars) if (c.ai) driveTraffic(c, dt, 1e5, 1e5);
   world.setShadowCenter(150, -30);
   updatePeds(dt);
@@ -835,6 +837,6 @@ function draw(dt) {
   }
 }
 applyQuality(); buildMenu(); S.state = 'menu'; $('menu').classList.remove('hidden');
-const DBG = { S, P, cam, world, post, renderer, QL: QT, setQ: (n) => { ql = n; applyQuality(); }, finale, startMission, COL, action, startWanted, audio, Audio, THEMES, radioNext, horn, trophy, PEDS, NODES, step: (n, dt = 1 / 30, noDraw) => { for (let i = 0; i < n; i++) { S.time += dt; tick(dt); } if (!noDraw) draw(dt); } };
+const DBG = { mcam: (a) => { MCAM = a; }, S, P, cam, world, post, renderer, QL: QT, setQ: (n) => { ql = n; applyQuality(); }, finale, startMission, COL, action, startWanted, audio, Audio, THEMES, radioNext, horn, trophy, PEDS, NODES, step: (n, dt = 1 / 30, noDraw) => { for (let i = 0; i < n; i++) { S.time += dt; tick(dt); } if (!noDraw) draw(dt); } };
 if (QS.has('debug')) window.__gtr = DBG;
 requestAnimationFrame(frame);
