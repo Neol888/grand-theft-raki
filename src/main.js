@@ -286,6 +286,9 @@ const LEAKS = [[POI.leak1[0] + 1.8, POI.leak1[1] + 1.2], [POI.leak2[0] + 1.8, PO
   const f = world.fire; if (f) for (const [dx, dz] of [[-1.5, 0.4], [1.1, -1.1]]) add(f[0] + dx, f[2] + dz, Math.atan2(-dx, -dz), 0x30323c, 'tip');
   exIns = add(LEAKS[0][0], LEAKS[0][1], 0.6, 0x1d2029, 'ins');
   add(-236.2, 169.6, 0, 0x2a4a7a, 'master');
+  for (const s of [-1, 1]) add(POI.gate[0] - 2.0, POI.gate[1] + s * 4.4, Math.PI / 2, s < 0 ? 0x9aa85a : 0x7f9070, 'stalker');
+  for (const t of world.towers) { const o = [[2.2, 1.0], [-2.2, 1.0], [1.0, 2.2], [1.0, -2.2]].find((q) => !world.col.near(t.x + q[0], t.z + q[1], 0.6) && !isRoad(t.x + q[0], t.z + q[1])) || [2.2, 1.0]; add(t.x + o[0], t.z + o[1], Math.atan2(-o[0], -o[1]) + Math.PI, 0xe8821a, 'tech'); }
+  for (let i = 0; i < 3; i++) add(POI.dima[0] - 3.0, POI.dima[1] + 2.6 + i * 2.0, Math.PI / 2, 0x9aa0aa, 'bot').hid = true;
   exMesh = new THREE.InstancedMesh(pedMesh.geometry, world.mPL, EXTRAS.length); exMesh.frustumCulled = false; scene.add(exMesh);
   EXTRAS.forEach((p, i) => { p.gy = surface({ x: p.x, z: p.z, y: 2 }); p.c = new THREE.Color(p.col); exMesh.setColorAt(i, p.c); });
 })();
@@ -294,18 +297,25 @@ const EXSAY = {
   tip: [['sys', 'Типы греются у бочки. Чек не дают, гарантия — честное слово']],
   ins: [['sys', 'Инсайдер: «Перенесут. Или нет. Информация платная»']],
   master: [['sys', 'Мастер на Ватутина: «Чистка — час. Дорога сюда — два»'], ['artem', 'Ватутина далековато)))']],
+  stalker: [['sys', 'Сталкер у ворот: «В Зону на машине нельзя. Пешком тоже не советую»'], ['kos', 'Я кстати удивлен, что здесь только мы с тобой фанаты сталкера']],
+  tech: [['sys', 'Связист у вышки: «Сигнал отличный. Это у вас телефон неправильно лежит»'], ['geisler', 'Хз че то мегафон последнее время очень плохо работает..']],
 };
 function updateExtras(dt) {
   const play = S.state === 'play', car = play && S.mode === 'car' ? S.car : null, T = S.time, Mi = play ? S.mission : null;
   if (play) { // инсайдер переезжает вместе со сливом
     const li = Mi && Mi.id === 'pasha' ? Math.min(Mi.si, 2) : S.done && S.done.pasha ? 2 : exIns.li;
     if (li !== exIns.li && !exIns.fly) { exIns.fly = 1; exIns.to = li; exIns.vy = 17; exIns.jx = exIns.jz = 0; }
+    if (S.done && S.done.dima && !S.flags.exbots) { // на войну всё-таки кто-то пришёл
+      S.flags.exbots = 1; let k = 0; for (const p of EXTRAS) if (p.kind === 'bot') { p.hid = false; p.y = 10 + k++ * 3; p.vy = -0.01; }
+      sayQ([['sys', 'На войну всё-таки пришли трое. Это боты. Они хотя бы не опаздывают']]);
+    }
     if (exIns.fly && exIns.vy <= 0) { exIns.x = LEAKS[exIns.to][0]; exIns.z = LEAKS[exIns.to][1]; exIns.ox = exIns.oz = 0; exIns.li = exIns.to; exIns.fly = 0; }
   }
   let tipNear = false, vis = 0; const cpx = camera.position.x, cpz = camera.position.z;
   for (let i = 0; i < EXTRAS.length; i++) {
     const p = EXTRAS[i], x = p.x + p.ox, z = p.z + p.oz, dx = x - P.x, dz = z - P.z, d = play ? Math.hypot(dx, dz) : 99;
-    if (d < 11 && !S.flags['ex' + p.kind] && !(p.kind === 'ins' && Mi && Mi.id === 'pasha')) { S.flags['ex' + p.kind] = 1; sayQ(EXSAY[p.kind]); }
+    if (p.hid) continue;
+    if (d < 11 && EXSAY[p.kind] && !S.flags['ex' + p.kind] && !(p.kind === 'ins' && Mi && Mi.id === 'pasha')) { S.flags['ex' + p.kind] = 1; sayQ(EXSAY[p.kind]); }
     if (car && p.y === 0 && car.speed > 3 && d < 5.5) {
       p.vy = 7; p.jx = dx / (d || 1) * 5; p.jz = dz / (d || 1) * 5; if (S.time > pedSq) { pedSq = S.time + 0.7; audio.play('squeak'); }
       if (p.kind === 'queue') { trophy('queue'); if (!S.flags.exq2) { S.flags.exq2 = 1; sayQ([['sys', 'Очередь: «Вас тут не стояло!»']]); } }
@@ -314,6 +324,7 @@ function updateExtras(dt) {
     if (p.vy !== 0 || p.y > 0) { p.vy -= 22 * dt; p.y += p.vy * dt; p.ox += p.jx * dt; p.oz += p.jz * dt; if (p.y <= 0) { p.y = 0; p.vy = 0; } }
     else { const k = Math.min(1, dt * 0.7); p.ox -= p.ox * k; p.oz -= p.oz * k; }
     if ((x - cpx) * (x - cpx) + (z - cpz) * (z - cpz) > 14400) continue; // дальше 120 м не рисуем
+    if (play && p.kind === 'stalker' && Math.sin(T * 5 + p.ph) > 0.2) dyn.add(x + 0.45, p.gy + 1.3 + p.y, z + 0.25, 1.1, 0.25, 1.3, 0.4); // детектор аномалий
     let hop = Math.abs(Math.sin(T * 1.6 + p.ph)) * 0.03, yaw = p.h + Math.sin(T * 0.7 + p.ph) * 0.18;
     if (p.kind === 'queue') { const w = (T * 0.9 - p.k * 0.3) % 7; if (w > 0 && w < 0.5) hop = Math.sin(w * 2 * Math.PI) * 0.4; }
     else if (d < 12) yaw = Math.atan2(-dx, -dz);
@@ -335,7 +346,7 @@ function updateGags(dt) {
   }
   // вышки Гайслера искрят, когда их пнули
   if (M && M.id !== gagId) { gagId = M.id; S.gagTw = 0; }
-  if (M && M.id === 'geisler') { const n = M.pts.filter((q) => q.done).length; if (n > (S.gagTw || 0)) { S.gagTw = n; spray.burst(P.x, 3.5, P.z, 46, 9, 1.2, 3, 2.4, 0.6); S.shake = Math.max(S.shake, 0.6); } }
+  if (M && M.id === 'geisler') { const n = M.pts.filter((q) => q.done).length; if (n > (S.gagTw || 0)) { S.gagTw = n; spray.burst(P.x, 3.5, P.z, 46, 9, 1.2, 3, 2.4, 0.6); S.shake = Math.max(S.shake, 0.6); let b = null, bd = 40; for (const p of EXTRAS) if (p.kind === 'tech') { const d = Math.hypot(p.x - P.x, p.z - P.z); if (d < bd) { bd = d; b = p; } } if (b && b.y === 0) { b.vy = 9; b.jx = b.jz = 0; } } }
   // трофеи за места
   if (car && car.e.layer === 1) { S.brg = (S.brg || 0) | (car.e.z < 30 ? 1 : 2); if (S.brg === 3) trophy('bridges'); }
   if (S.danceT > 0 && Math.abs(P.x - 151.5) < 2.6 && Math.abs(P.z + 30) < 15) trophy('opera');
@@ -424,7 +435,7 @@ function horn() {
   for (const c of S.cars) if (c.ai && c.ai.type === 'traffic' && Math.hypot(c.e.x - P.x, c.e.z - P.z) < 16) c.stun = 1.3;
   for (const n of S.npcs) if (Math.hypot(n.x - P.x, n.z - P.z) < 14) { n.talk = 1.6; if (!n.y) n.vy = 6; }
   for (const p of PEDS) if (p.y === 0 && Math.hypot(p.ax + (p.bx - p.ax) * p.u + p.ox - P.x, p.az + (p.bz - p.az) * p.u + p.oz - P.z) < 13) { p.vy = 6; p.jx = p.jz = 0; }
-  for (const p of EXTRAS) if (p.y === 0 && !p.fly && Math.hypot(p.x + p.ox - P.x, p.z + p.oz - P.z) < 13) { p.vy = 6; p.jx = p.jz = 0; if (p.kind === 'queue' && !S.flags.exq3) { S.flags.exq3 = 1; sayQ([['sys', 'Очередь: «Не сигналь, быстрее не станет»']]); } }
+  for (const p of EXTRAS) if (p.y === 0 && !p.fly && !p.hid && Math.hypot(p.x + p.ox - P.x, p.z + p.oz - P.z) < 13) { p.vy = 6; p.jx = p.jz = 0; if (p.kind === 'queue' && !S.flags.exq3) { S.flags.exq3 = 1; sayQ([['sys', 'Очередь: «Не сигналь, быстрее не станет»']]); } }
   S.horns = (S.horns || 0) + 1; if (S.horns >= 10) trophy('horn');
 }
 document.addEventListener('pointerdown', (e) => {
