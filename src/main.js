@@ -466,6 +466,7 @@ function startGame() {
       S.npcs.push({ id: q.id, x, z, rak: m, cool: 3 + Math.random() * 6, talk: 0 });
     }
     const car = new Car(scene, POI.start[0], POI.start[1], Math.PI, new THREE.Color(r.css).multiplyScalar(0.8).getHex(), 'sedan'); S.cars.push(car); S.car = car; S.mode = 'car'; car.g.add(beams);
+    { const c = new THREE.Color(r.css), k = 0.8 / Math.max(c.r, c.g, c.b, 0.08), n = new Batch(); n.quad([-2.7, 0.215, 3.8], [2.7, 0.215, 3.8], [2.7, 0.215, -3.8], [-2.7, 0.215, -3.8], [c.r * k, c.g * k, c.b * k]); const nm = new THREE.Mesh(n.build(), world.pools.material); nm.renderOrder = 2; nm.frustumCulled = false; beams.add(nm); }
     P.x = car.e.x; P.z = car.e.z; cam.yaw = Math.PI; cam.init = false;
     // шесть поручений из доступных: сначала те, что на этом устройстве выпадали реже
     let pool = ORDER.filter(id => id !== S.pid);

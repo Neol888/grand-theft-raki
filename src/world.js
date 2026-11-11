@@ -424,9 +424,14 @@ export function buildWorld(scene) {
     for (const s of [-1, 1]) { B.pl.add(boxGeo, M(x, 6.85, z + s * 2.42, 2.3, 2.3, 0.3, 0, 0, Math.PI / 4), wh); B.pl.add(boxGeo, M(x + s * 2.42, 6.85, z, 0.3, 2.3, 2.3, 0, Math.PI / 4, 0), wh); }
     B.pl.add(new THREE.CylinderGeometry(1, 1, 1, 8), M(x, 8.1, z, 1.5, 2.4, 1.5), wh);
     const prof = [[0.05, 0], [1.0, 0.25], [1.25, 0.9], [0.95, 1.7], [0.4, 2.4], [0.08, 3.1]].map(p => new THREE.Vector2(p[0], p[1]));
-    B.pl.add(new THREE.LatheGeometry(prof, 12), M(x, 9.2, z, 1.25, 1.1, 1.25), gold);
+    B.em.add(new THREE.LatheGeometry(prof, 12), M(x, 9.2, z, 1.25, 1.1, 1.25), (v) => { const f = 0.42 + 0.5 * (1 - clamp(v.y / 3.1, 0, 1)); return [1.05 * f, 0.7 * f, 0.15 * f]; });
+    { const lo = [0.72, 0.58, 0.36], hi = [0.2, 0.17, 0.12], g4 = [lo, lo, hi, hi], a = 2.44, y0 = 1.5, y1 = 6.4, h = 2.1;
+      B.em.quad([x - h, y0, z + a], [x + h, y0, z + a], [x + h, y1, z + a], [x - h, y1, z + a], g4);
+      B.em.quad([x + h, y0, z - a], [x - h, y0, z - a], [x - h, y1, z - a], [x + h, y1, z - a], g4);
+      B.em.quad([x + a, y0, z + h], [x + a, y0, z - h], [x + a, y1, z - h], [x + a, y1, z + h], g4);
+      B.em.quad([x - a, y0, z - h], [x - a, y0, z + h], [x - a, y1, z + h], [x - a, y1, z - h], g4); }
     B.em.box(x - 0.07, x + 0.07, 12.5, 14.1, z - 0.07, z + 0.07, [2.2, 1.5, 0.3]); B.em.box(x - 0.45, x + 0.45, 13.4, 13.55, z - 0.07, z + 0.07, [2.2, 1.5, 0.3]);
-    for (const [dx, dz] of [[0, 2.45], [0, -2.45]]) { const zz = z + dz + Math.sign(dz) * 0.02, c0 = [1.9, 1.2, 0.5]; if (dz > 0) B.em.quad([x - 0.6, 1.5, zz], [x + 0.6, 1.5, zz], [x + 0.6, 4.2, zz], [x - 0.6, 4.2, zz], c0); else B.em.quad([x + 0.6, 1.5, zz], [x - 0.6, 1.5, zz], [x - 0.6, 4.2, zz], [x + 0.6, 4.2, zz], c0); }
+    for (const [dx, dz] of [[0, 2.45], [0, -2.45]]) { const zz = z + dz + Math.sign(dz) * 0.07, c0 = [1.9, 1.2, 0.5]; if (dz > 0) B.em.quad([x - 0.6, 1.5, zz], [x + 0.6, 1.5, zz], [x + 0.6, 4.2, zz], [x - 0.6, 4.2, zz], c0); else B.em.quad([x + 0.6, 1.5, zz], [x - 0.6, 1.5, zz], [x - 0.6, 4.2, zz], [x + 0.6, 4.2, zz], c0); }
     col.circle(x, z, 4.7); pool(x, z, 14, [0.9, 0.6, 0.3]); glow(x, 10.6, z, 5, [1.4, 0.9, 0.25]);
   }
   // cell towers (Geisler)
