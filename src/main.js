@@ -32,6 +32,8 @@ const beams = (() => {
   const b = new Batch(); for (const s of [-0.62, 0.62]) b.add(new THREE.ConeGeometry(1, 1, 12, 1, true), M(s, 0.72, 9.2, 1.7, 14, 1.7, 0, -Math.PI / 2), [0.15, 0.14, 0.11]);
   const cm = new THREE.Mesh(b.build(), world.cones.material); cm.renderOrder = 4; cm.frustumCulled = false;
   const p = new Batch(); p.quad([-4.5, 0.2, 26], [4.5, 0.2, 26], [4.5, 0.2, 2.4], [-4.5, 0.2, 2.4], [0.34, 0.32, 0.25]);
+  p.quad([-2.8, 0.21, 12.5], [2.8, 0.21, 12.5], [2.8, 0.21, 2.2], [-2.8, 0.21, 2.2], [0.5, 0.47, 0.36]);
+  p.quad([-2.2, 0.21, -1.6], [2.2, 0.21, -1.6], [2.2, 0.21, -6.4], [-2.2, 0.21, -6.4], [0.4, 0.035, 0.02]);
   const pm = new THREE.Mesh(p.build(), world.pools.material); pm.renderOrder = 2; pm.frustumCulled = false;
   const g = new THREE.Group(); g.add(cm, pm); return g;
 })();
@@ -438,8 +440,8 @@ function updatePlayer(dt) {
     }
     if (!wl[6] && !air) { wl[0] = ax; wl[1] = gy; wl[2] = az; wl[3] = bx; wl[4] = gy; wl[5] = bz; wl[6] = true; }
     if (!air && sp > 5) {
-      const n = c.slip > 4 ? 3 : (Math.random() < sp / 26 ? 1 : 0);
-      for (let i = 0; i < n; i++) { const s = Math.random() < 0.5 ? -0.9 : 0.9; spray.emit(e.x - fx * 1.5 + rx * s, e.y + 0.15, e.z - fz * 1.5 + rz * s, -fx * 2 + (Math.random() - 0.5) * 4 + e.vx * 0.3, 1.5 + Math.random() * 2.5, -fz * 2 + (Math.random() - 0.5) * 4 + e.vz * 0.3, 0.6, 0.2, 0.24, 0.34); }
+      const n = (c.slip > 4 ? 4 : (Math.random() < sp / 13 ? 1 : 0)) + (sp > 22 ? 1 : 0) + (e.layer !== 2 && !isRoad(e.x, e.z) ? 1 : 0);
+      for (let i = 0; i < n; i++) { const s = Math.random() < 0.5 ? -0.9 : 0.9; spray.emit(e.x - fx * 1.5 + rx * s, e.y + 0.15, e.z - fz * 1.5 + rz * s, -fx * 2 + (Math.random() - 0.5) * 4 + e.vx * 0.3, 1.5 + Math.random() * 2.5, -fz * 2 + (Math.random() - 0.5) * 4 + e.vz * 0.3, 0.75, 0.3, 0.34, 0.46); }
     }
     head.intensity += (26 - head.intensity) * damp(5, dt);
     head.position.set(e.x + fx * 1.6, e.y + 1.0, e.z + fz * 1.6); head.target.position.set(e.x + fx * 22, e.y - 1.2, e.z + fz * 22); head.target.updateMatrixWorld();

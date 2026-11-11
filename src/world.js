@@ -488,7 +488,7 @@ export function buildWorld(scene) {
     bt.box(L.x - 0.12, L.x + 0.12, 0, L.h, L.z - 0.12, L.z + 0.12, pole);
     if (L.x !== L.hx || L.z !== L.hz) bt.box(Math.min(L.x, L.hx) - 0.08, Math.max(L.x, L.hx) + 0.08, L.h - 0.1, L.h + 0.1, Math.min(L.z, L.hz) - 0.08, Math.max(L.z, L.hz) + 0.08, pole);
     (L.bridge ? B.brE : B.em).box(L.hx - 0.3, L.hx + 0.3, L.h - 0.28, L.h - 0.1, L.hz - 0.3, L.hz + 0.3, mulc(L.c, 5));
-    glow(L.hx, L.h - 0.3, L.hz, L.h > 6 ? 3.0 : 2.0, mulc(L.c, 1.6));
+    glow(L.hx, L.h - 0.3, L.hz, L.h > 6 ? 3.0 : 2.0, mulc(L.c, 1.6)); glow(L.hx, L.h - 0.3, L.hz, L.h > 6 ? 8.5 : 5.5, mulc(L.c, 0.2));
     pool(L.hx, L.hz, L.pr, mulc(L.c, L.h > 6 ? 0.3 : 0.25));
     B.cone.add(coneOpen, M(L.hx, L.h / 2, L.hz, L.pr * 0.42, L.h, L.pr * 0.42), mulc(L.c, 0.36));
     B.streak.bill(L.hx, 2 * L.my - L.h * 1.1, L.hz, L.h > 6 ? 1.1 : 0.8, L.h * 0.9, mulc(L.c, L.bridge ? 3.2 : 2.6));
