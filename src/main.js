@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { clamp, angDiff, damp, rng, Batch, M } from './util.js';
 import { Post } from './post.js';
-import { buildWorld, POI, LANDMARKS, surface, isRoad, bankH, glowScale, BOUND_X, BOUND_Z, RX, RZ } from './world.js';
+import { buildWorld, POI, LANDMARKS, surface, isRoad, bankH, glowScale, fogUniform, BOUND_X, BOUND_Z, RX, RZ } from './world.js';
 import { makeRak, animRak, nameSprite } from './raki.js';
 import { Car, NODES, nearestNode, placeTraffic, driveTraffic } from './cars.js';
 import { Snow, Spray, Tracks, DynGlow, Marker } from './fx.js';
@@ -80,6 +80,13 @@ const QLT = [
 const QT = isTouch ? QLT : QL;
 let ql = QS.has('q') ? clamp(+QS.get('q') || 0, 0, QT.length - 1) : (isTouch ? 1 : 0), rh = 720, qlSaid = false, upTried = false, good = 0;
 const ql0 = ql;
+let WX = 0; // погода партии: 0 обычный снег, 1 ясная ночь, 2 метель
+const WXN = [
+  null,
+  [['sys', 'Вторая партия. Ночь ясная, снег почти перестал — видно оба берега'], ['sanya', 'Ну, дам ей второй шанс, как будет свободное время )']],
+  [['sys', 'Третья партия. На город идёт метель, фонари в ореолах'], ['max', 'Оно стоит того в 20 крат']],
+];
+function setWeather(w) { WX = w; fogUniform.value = [0.0052, 0.0037, 0.0078][w]; if (scene.fog) scene.fog.density = fogUniform.value; }
 function applyQuality() {
   const q = QT[ql], dpr = Math.min(window.devicePixelRatio || 1, q.scale);
   let w = innerWidth * dpr, h = innerHeight * dpr; const k = Math.min(1, Math.sqrt((isTouch ? 1.7e6 : 4.4e6) / (w * h)));
@@ -90,7 +97,7 @@ function applyQuality() {
   world.moon.castShadow = q.shadow > 0;
   if (q.shadow && sh.mapSize.x !== q.shadow) { sh.mapSize.set(q.shadow, q.shadow); if (sh.map) { sh.map.dispose(); sh.map = null; } }
   world.mirror.visible = world.bridgesM.visible = world.streaks.visible = q.mirror; if (pedMesh) pedMesh.visible = q.mirror;
-  snow.density(q.snow);
+  snow.density(q.snow * (WX === 1 ? 0.35 : 1));
   const a = innerWidth / innerHeight; camera.aspect = a; baseFov = a >= 1.3 ? 58 : Math.min(88, 2 * Math.atan(Math.tan(29 * Math.PI / 180) * 1.3 / a) * 180 / Math.PI);
 }
 let baseFov = 58;
@@ -314,6 +321,24 @@ function updateExtras(dt) {
   exMesh.instanceMatrix.needsUpdate = true;
 }
 
+// ---------- мелкие гэги ----------
+let gagId = null;
+function updateGags(dt) {
+  const M = S.mission, car = S.mode === 'car' ? S.car : null;
+  // пыльная PS5 Артёма пылит из багажника
+  if (M && M.id === 'artem' && M.si === 1 && car && car.speed > 4 && Math.random() < dt * 14) {
+    const e = car.e, fx = Math.sin(car.h), fz = Math.cos(car.h);
+    spray.emit(e.x - fx * 2.3, e.y + 1.0, e.z - fz * 2.3, -fx * 2 + (Math.random() - 0.5) * 2, 1.2 + Math.random() * 1.5, -fz * 2 + (Math.random() - 0.5) * 2, 1.1, 0.34, 0.3, 0.24);
+  }
+  // вышки Гайслера искрят, когда их пнули
+  if (M && M.id !== gagId) { gagId = M.id; S.gagTw = 0; }
+  if (M && M.id === 'geisler') { const n = M.pts.filter((q) => q.done).length; if (n > (S.gagTw || 0)) { S.gagTw = n; spray.burst(P.x, 3.5, P.z, 46, 9, 1.2, 3, 2.4, 0.6); S.shake = Math.max(S.shake, 0.6); } }
+  // трофеи за места
+  if (car && car.e.layer === 1) { S.brg = (S.brg || 0) | (car.e.z < 30 ? 1 : 2); if (S.brg === 3) trophy('bridges'); }
+  if (S.danceT > 0 && Math.abs(P.x - 151.5) < 2.6 && Math.abs(P.z + 30) < 15) trophy('opera');
+  if (M && M.id === 'artem' && M.si === 1 && Math.hypot(P.x - POI.vatutina[0], P.z - POI.vatutina[1]) < 14) trophy('dust');
+}
+
 // ---------- cars ----------
 const CARCOL = [0x8a2a2a, 0x2a4a8a, 0x6a6f78, 0x1f2a36, 0xcfd3da, 0x2f6a4a, 0x7a5a2a, 0x3a3a3a, 0x8a8f2a, 0x5a2a6a];
 for (let i = 0; i < 11; i++) {
@@ -403,7 +428,7 @@ document.addEventListener('pointerdown', (e) => {
   if (S.state === 'play') { if (!S.flags.voice) { S.flags.voice = 1; sayQ([['sys', 'Ты послушал голосовое Макса. Первый за всю историю чата']]); } trophy('voice'); }
 });
 // трофеи: очков не дают, только повод посмеяться; оформление своё
-const TROPHIES = { what: ['Что это?', 'начал партию'], queue: ['Вас тут не стояло', 'разогнал очередь за диском'], tipy: ['Свой у типов', 'постоял с типами у бочки'], ice: ['Руки в рыбе', 'выехал на лёд Оби'], speed: ['11.1.4', 'разогнался до 111,4 км/ч'], rev: ['Всё так, только наоборот', 'четыре секунды ехал задом'],
+const TROPHIES = { what: ['Что это?', 'начал партию'], again: ['Второй шанс', 'начал вторую партию'], x20: ['В 20 крат', 'начал третью партию'], bridges: ['Оба берега', 'проехал по обоим мостам'], opera: ['Большой зал', 'станцевал перед Оперным'], dust: ['Руки должны быть в рыбе', 'довёз пыльную PS5, не растеряв пыль'], queue: ['Вас тут не стояло', 'разогнал очередь за диском'], tipy: ['Свой у типов', 'постоял с типами у бочки'], ice: ['Руки в рыбе', 'выехал на лёд Оби'], speed: ['11.1.4', 'разогнался до 111,4 км/ч'], rev: ['Всё так, только наоборот', 'четыре секунды ехал задом'],
   steal: ['Боже, храни пиратов', 'угнал машину'], voice: ['Никто не слушает', 'послушал голосовое Макса'], crash: ['Самый кайф в разрушениях', 'въехал как следует'], zap: ['В аномалии не лезь', 'залез в аномалию'],
   esc: ['Лавочку не прикрыли', 'ушёл от модераторов'], ban: ['П2 или П3?', 'получил бан'], cards: ['144 из 144', 'собрал все карточки Игоря'], radio: ['Меломан', 'послушал все одиннадцать станций'],
   horn: ['Очень плохое сообщение', 'посигналил десять раз'], slow: ['Потерпи чуть-чуть', 'перетерпел тягомотное начало'], bati: ['Батя в здании', 'успел к Мише вовремя'], dance: ['Закапываемся', 'станцевал пешком'], beam: ['BeamNG', 'снёс десять предметов'] };
@@ -449,6 +474,9 @@ function startGame() {
     }
     S.queue = pool; S.run = pool.slice(); S.done = {}; S.stats.total = pool.length; S.radio = null; S.heard = {}; S.horns = 0; S.tro = {}; audio.setTheme(S.pid);
     S.state = 'play'; S.t = 0; grace = 4; bad = 0; applyQuality(); $('fade').style.opacity = 0;
+    let runs = 0; try { runs = +(localStorage.getItem('gtr_runs') || 0) || 0; localStorage.setItem('gtr_runs', runs + 1); } catch (e) { /* ignore */ }
+    S.runN = runs + 1; setWeather(QS.has('wx') ? clamp(+QS.get('wx') || 0, 0, 2) : runs % 3); applyQuality();
+    S.wxSay = runs > 0 ? (runs < 3 ? WXN[runs] : [['sys', 'Партия № ' + (runs + 1) + '. ' + ['Снег как обычно', 'Ночь ясная', 'Метель'][WX] + '. Поручения выпали другие']]) : null;
     showBig('23:54', 'До релиза шесть минут');
     prompt(isTouch ? 'Левый палец — руль и газ · правый — камера' : 'WASD — ехать · Пробел — ручник · E — выйти из машины', 7);
     if (QS.has('t')) S.left = +QS.get('t');
@@ -756,7 +784,8 @@ function updateCamera(dt) {
 
 // ---------- play loop ----------
 function updatePlay(dt) {
-  S.t += dt; S.left -= dt; if (S.t > 9) trophy('what');
+  S.t += dt; S.left -= dt; if (S.t > 9) trophy('what'); if (S.wxSay && S.t > 13 && !S.modal) { sayQ(S.wxSay); S.wxSay = null; trophy(S.runN === 2 ? 'again' : 'x20'); }
+  updateGags(dt);
   updatePlayer(dt);
   for (const c of S.cars) if (c.ai && c.ai.type === 'traffic') driveTraffic(c, dt, P.x, P.z);
   dyn.begin();
