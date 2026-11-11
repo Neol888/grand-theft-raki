@@ -442,7 +442,7 @@ export function buildWorld(scene) {
   // гирлянды над Красным проспектом и сугробы у бордюров
   const gcol = [[1.5, 0.9, 0.4], [1.5, 0.25, 0.3], [0.3, 1.4, 0.6], [0.4, 0.7, 1.6]];
   for (let z = -160, gi = 0; z <= 160; z += 20) { if (RZ.some(r => Math.abs(z - r) < 9) || Math.abs(z - 30) < 12) continue; for (let i = 0; i <= 10; i++) { const u = i / 10; glow(129.5 + u * 21, 7.6 - Math.sin(u * Math.PI) * 1.5, z, 0.9, gcol[(gi + i) % 4]); } gi++; }
-  const sphLow = new THREE.SphereGeometry(1, 8, 5);
+  const sphLow = new THREE.SphereGeometry(1, 6, 4);
   for (const bl of blocks) for (let i = 0; i < 5; i++) {
     const side = Math.floor(R() * 4), t = R(), x = side < 2 ? lerp(bl.x0 + 2, bl.x1 - 2, t) : side === 2 ? bl.x0 + 1 : bl.x1 - 1, z = side >= 2 ? lerp(bl.z0 + 2, bl.z1 - 2, t) : side === 0 ? bl.z0 + 1 : bl.z1 - 1;
     if (col.near(x, z, 1.2)) continue; B.pl.add(sphLow, M(x, 0.12, z, side < 2 ? 1.6 + R() * 1.6 : 0.9, 0.35 + R() * 0.3, side < 2 ? 0.9 : 1.6 + R() * 1.6), snow);

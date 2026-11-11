@@ -202,7 +202,7 @@ function collect(c) {
 // ---------- разрушаемая мелочь: снеговики, конусы, урны (декорации, на езду не влияют) ----------
 const PROPS = [], propMesh = [];
 (function buildProps() {
-  const R = rng(390), white = [0.86, 0.9, 0.97], sph = new THREE.SphereGeometry(1, 8, 6), cone = new THREE.ConeGeometry(1, 1, 8), cyl = new THREE.CylinderGeometry(1, 1, 1, 8);
+  const R = rng(390), white = [0.86, 0.9, 0.97], sph = new THREE.SphereGeometry(1, 6, 4), cone = new THREE.ConeGeometry(1, 1, 6), cyl = new THREE.CylinderGeometry(1, 1, 1, 6);
   const sm = new Batch(); sm.add(sph, M(0, 0.45, 0, 0.5, 0.45, 0.5), white); sm.add(sph, M(0, 1.05, 0, 0.36, 0.33, 0.36), white); sm.add(sph, M(0, 1.52, 0, 0.25, 0.24, 0.25), white); sm.add(cone, M(0, 1.52, 0.3, 0.05, 0.26, 0.05, 0, Math.PI / 2), [0.9, 0.35, 0.05]); sm.add(cyl, M(0, 1.8, 0, 0.2, 0.2, 0.2), [0.5, 0.06, 0.06]);
   const cn = new Batch(); cn.add(cone, M(0, 0.4, 0, 0.26, 0.75, 0.26), [0.95, 0.3, 0.04]); cn.add(cyl, M(0, 0.45, 0, 0.15, 0.1, 0.15), white); cn.add(cyl, M(0, 0.04, 0, 0.34, 0.07, 0.34), [0.1, 0.1, 0.12]);
   const bn = new Batch(); bn.add(cyl, M(0, 0.45, 0, 0.3, 0.9, 0.3), [0.12, 0.2, 0.16]); bn.add(sph, M(0, 0.93, 0, 0.32, 0.14, 0.32), white);
@@ -231,7 +231,7 @@ function updateProps(dt) {
 // ---------- раки-прохожие: один InstancedMesh, без коллизий; от машины отпрыгивают, на счёт не влияют ----------
 const PEDS = []; let pedMesh = null, pedSq = 0;
 (function buildPeds() {
-  const b = new Batch(), sph = new THREE.SphereGeometry(1, 8, 6), cone = new THREE.ConeGeometry(1, 1, 6), w = [1, 1, 1], dk = [0.55, 0.55, 0.55], wh = [1.7, 1.7, 1.7], bl = [0.04, 0.04, 0.04];
+  const b = new Batch(), sph = new THREE.SphereGeometry(1, 7, 5), cone = new THREE.ConeGeometry(1, 1, 5), w = [1, 1, 1], dk = [0.55, 0.55, 0.55], wh = [1.7, 1.7, 1.7], bl = [0.04, 0.04, 0.04];
   b.add(sph, M(0, 0.9, 0, 0.4, 0.52, 0.36), w); b.add(sph, M(0, 1.5, 0.02, 0.36, 0.3, 0.33), w); b.add(sph, M(0, 0.5, -0.25, 0.3, 0.2, 0.28), dk);
   for (const s of [-1, 1]) { b.add(sph, M(s * 0.17, 1.95, 0.14, 0.09, 0.09, 0.09), wh); b.add(sph, M(s * 0.17, 1.955, 0.215, 0.045, 0.045, 0.03), bl); b.add(sph, M(s * 0.55, 1.05, 0.3, 0.17, 0.22, 0.14), w); b.add(cone, M(s * 0.55, 1.12, 0.52, 0.1, 0.34, 0.08, 0, Math.PI / 2 - 0.25), w); b.add(sph, M(s * 0.17, 0.12, 0.06, 0.12, 0.07, 0.18), dk); }
   const n = 14, R = rng(1911), cols = [0xc8402e, 0xd8623a, 0xb0407a, 0xcf5a33, 0xa83a2a, 0xe07a4a, 0x8a4ab0, 0x3a8ab0];
