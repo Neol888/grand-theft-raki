@@ -138,8 +138,12 @@ button{font:inherit;color:inherit;border:0;cursor:pointer;touch-action:manipulat
   #feed{width:min(330px,80vw)}
   #place,.touch #place{bottom:auto;top:calc(clamp(92px,21vmin,150px) + 132px + var(--st));left:12px;right:12px;max-width:none;text-align:center;transform:none;white-space:normal}
   .touch #tro{bottom:calc(188px + var(--sb))}
+  .touch #speak{top:auto;bottom:calc(282px + var(--sb));width:max-content;max-width:94vw;background:rgba(10,14,26,.96);z-index:3}
 }
-@media (max-height:430px) and (orientation:landscape){ .touch #prompt{bottom:calc(24px + var(--sb));font-size:12.5px} .touch #feed{width:min(250px,34vw)} #btns{top:calc(66px + var(--st))} #stick{bottom:calc(16px + var(--sb))} #bAct{bottom:calc(92px + var(--sb))} #bHand{bottom:calc(16px + var(--sb))} }
+/* во время погони индикатор модераторов занимает место под целью: подпись места прячем, баннер сдвигаем */
+.touch #top:has(#wanted:not(.hidden)) ~ #place{display:none}
+.touch #top:has(#wanted:not(.hidden)) ~ #big{top:calc(34% + 34px)}
+@media (max-height:430px) and (orientation:landscape){ .touch #prompt{bottom:calc(24px + var(--sb));font-size:12.5px} .touch #speak{top:auto;bottom:calc(62px + var(--sb));width:max-content;max-width:392px;font-size:13px;padding:6px 12px} .touch #feed{width:min(236px,32vw)} #btns{top:calc(66px + var(--st))} #stick{bottom:calc(16px + var(--sb))} #bAct{bottom:calc(92px + var(--sb))} #bHand{bottom:calc(16px + var(--sb))} }
 
 /* phone / modal / final */
 #phone{position:fixed;z-index:30;right:calc(10px + var(--sr));top:calc(10px + var(--st));bottom:calc(10px + var(--sb));width:min(380px,calc(100vw - 20px));border-radius:26px;display:flex;flex-direction:column;overflow:hidden;background:#0e1621;border:1px solid rgba(255,255,255,.14);box-shadow:0 20px 70px rgba(0,0,0,.7)}
@@ -235,6 +239,6 @@ button{font:inherit;color:inherit;border:0;cursor:pointer;touch-action:manipulat
 <div id="lbm" class="hidden"><div class="box glass"><div id="lbmc" class="lb"></div><button class="pill alt" id="lbmx">Закрыть</button></div></div>
 <div id="fade"></div><div id="err"></div>
 <script>window.addEventListener('error',function(e){var d=document.getElementById('err');if(d)d.textContent+=(e.message||e)+'\n';});</script>
-<script src="game.js?v=mwbm271n"></script>
+<script src="game.js?v=mwbm9cox"></script>
 </body>
 </html>
