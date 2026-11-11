@@ -756,7 +756,7 @@ function updateCamera(dt) {
 
 // ---------- play loop ----------
 function updatePlay(dt) {
-  S.t += dt; S.left -= dt; if (S.t > 3) trophy('what');
+  S.t += dt; S.left -= dt; if (S.t > 9) trophy('what');
   updatePlayer(dt);
   for (const c of S.cars) if (c.ai && c.ai.type === 'traffic') driveTraffic(c, dt, P.x, P.z);
   dyn.begin();
@@ -774,6 +774,8 @@ function updatePlay(dt) {
   audio.intensity += ((S.left < 60 ? 1 : S.wanted > 0 ? 0.85 : 0.5) - audio.intensity) * damp(1, dt); audio.rush = S.left < 60 ? 1 : 0;
   world.setShadowCenter(P.x, P.z);
   updateCamera(dt); updateHUD(dt);
+  // чужая машина, подъехавшая вплотную к камере, не должна закрывать экран
+  for (const c of S.cars) if (c !== S.car) { const dx = c.e.x - camera.position.x, dz = c.e.z - camera.position.z; c.g.visible = dx * dx + dz * dz > 12; }
   if (S.left <= 0) finale();
 }
 
@@ -825,9 +827,9 @@ function finale() {
   const st = S.stats; let rank = RANKS[0]; for (const r of RANKS) if (S.score >= r[0]) rank = r;
   let best = 0; try { best = +(localStorage.getItem('gtr_best') || 0); if (S.score > best) localStorage.setItem('gtr_best', S.score); } catch (e) { /* ignore */ }
   fin = { t: 0, i: 0, fw: 0, rank, best, fl: [], h0: world.hemi.intensity };
-  fin.ids = RAKI.map((q) => q.id).filter((id) => id !== S.pid); fin.ids.splice(5, 0, S.pid); fw.pts.visible = true;
+  fin.ids = RAKI.map((q) => q.id).filter((id) => id !== S.pid); fin.ids.splice(5, 0, S.pid); fw.pts.visible = true; for (const c of S.cars) c.g.visible = true;
   fin.ids.forEach((id, i) => { const r = raki[id]; r.visible = true; r.rotation.set(0, -Math.PI / 2, 0); r.position.set(id === S.pid ? 154.5 : 155.9, 0.95, -38 + i * 1.6); });
-  if (rak && !rak.userData.named) { rak.userData.named = 1; rak.add(nameSprite(pname, NC[S.pid] || BY_ID[S.pid].css)); }
+  if (rak && !rak.userData.named) { rak.userData.named = 1; const ns = nameSprite(pname, NC[S.pid] || BY_ID[S.pid].css); ns.position.y += 0.6; rak.add(ns); }
   const url = location.origin + location.pathname;
   const text = `🦀 Grand Theft Raki: Новосибирск\nИграл за: ${pname}\nСчёт: ${S.score} — звание ${rank[1]}\nПоручений: ${st.missions}/${st.total} · карточек Игоря: ${st.cards} из 144 · банов от модераторов: ${st.bans}${Object.keys(S.tro || {}).length ? '\nТрофеи: ' + Object.keys(S.tro).map((id) => TROPHIES[id][0]).join(', ') : ''}\n${url}`;
   $('frank').textContent = rank[1]; $('fscore').textContent = S.score + ' очк.'; $('fnote').innerHTML = esc(rank[2]) + '<br><i>' + esc(ENDING[S.pid] || '') + '</i>';
@@ -853,7 +855,7 @@ function updateFinal(dt) {
   const T = fin.t, a = T * 0.12 + 2.6, k0 = clamp((T - 6.5) / 5.5, 0, 1), k = k0 * k0 * (3 - 2 * k0), pan = Math.sin(T * 0.42 - 1.3), L = (p, q) => p + (q - p) * k;
   camera.fov = baseFov;
   camera.position.set(L(143.8 - T * 0.22, 176 + Math.cos(a) * 60), L(4.6 + T * 0.12, 22 + Math.min(T, 30) * 0.7), L(-30 + pan * 3.5, -30 + Math.sin(a) * 60));
-  camera.lookAt(L(155.6, 178), L(2.0, 14), L(-30 + pan * 5.5, -30)); camera.updateProjectionMatrix();
+  camera.lookAt(L(155.6, 178), L(4.4, 14), L(-30 + pan * 5.5, -30)); camera.updateProjectionMatrix();
   fin.ids.forEach((id, i) => {
     const r = raki[id], me = id === S.pid; animRak(r, S.time + i * 0.37, 1, (T + i * 0.7) % 3 < 1.2);
     r.position.y = 0.95 + Math.abs(Math.sin(T * 5.2 + i * 1.7)) * (me ? 0.75 : 0.42);
