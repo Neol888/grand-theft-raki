@@ -327,17 +327,27 @@ export function buildWorld(scene) {
   }
   function opera(b) {
     const wallC = C(0xdccba4), colC = C(0xeee9dc), domeC = C(0x8f9aa6), cx = 181, cz = -30;
-    B.pl.add(new THREE.CylinderGeometry(1, 1, 1, 24), M(cx, 8.15, cz, 15, 16, 15), wallC);
+    B.em.add(new THREE.CylinderGeometry(1, 1, 1, 24, 3), M(cx, 8.15, cz, 15, 16, 15), (v) => { const t = clamp(v.y + 0.5, 0, 1), k = Math.round(Math.atan2(v.z, v.x) / (Math.PI / 12)), f = lerp(k % 2 ? 0.95 : 0.6, 0.26, Math.sqrt(t)); return [0.8 * f, 0.6 * f, 0.33 * f]; });
     B.em.add(new THREE.SphereGeometry(1, 28, 10, 0, Math.PI * 2, 0, Math.PI / 2), M(cx, 16.1, cz, 15.6, 9.6, 15.6), (v) => { const t = smooth(v.y * 1.25), rib = 0.86 + 0.14 * Math.sign(Math.sin(Math.atan2(v.z, v.x) * 14)), f = (0.75 + 0.25 * (-v.x)) * rib; return [lerp(0.62, 0.11, t) * f, lerp(0.47, 0.14, t) * f, lerp(0.3, 0.22, t) * f]; });
     B.pl.add(cylGeo, M(cx, 26.3, cz, 1.6, 1.6, 1.6), colC); B.pl.add(coneGeo, M(cx, 28.6, cz, 1.2, 3, 1.2), domeC);
     B.pl.box(cx - 15.2, cx + 15.2, 16, 16.9, cz - 15.2, cz + 15.2, colC);
     B.pl.box(190, 201, 0.15, 21, cz - 12, cz + 12, wallC, snow);
     B.pl.box(160, 170, 0.15, 13, cz - 14, cz + 14, wallC, snow);
-    for (let i = 0; i < 8; i++) { const z = cz - 12 + i * 24 / 7; B.pl.add(cylGeo, M(158.8, 5.65, z, 0.85, 11, 0.85), colC); }
+    for (let i = 0; i < 8; i++) { const z = cz - 12 + i * 24 / 7; B.em.add(cylGeo, M(158.8, 5.65, z, 0.85, 11, 0.85), (v) => { const f = lerp(0.95, 0.34, clamp(v.y + 0.5, 0, 1)) * (0.72 + 0.28 * -v.x); return [0.95 * f, 0.78 * f, 0.5 * f]; }); }
     B.pl.box(157.4, 160.4, 11.1, 13, cz - 14.2, cz + 14.2, colC, snow);
     B.pl.box(157.8, 160.2, 13, 14.4, cz - 10, cz + 10, colC, snow); B.pl.box(158.2, 160, 14.4, 15.4, cz - 5.5, cz + 5.5, colC, snow);
     for (let i = 0; i < 3; i++) B.pl.box(153.8 + i * 1.1, 157.6, 0.15, 0.95 - i * 0.27, cz - 14.5, cz + 14.5, C(0x9a958c), snow);
-    for (let i = 0; i < 5; i++) { const z = cz - 8.5 + i * 4.25; B.em.quad([159.94, 1.2, z - 1.1], [159.94, 1.2, z + 1.1], [159.94, 6.5, z + 1.1], [159.94, 6.5, z - 1.1], [[0.7, 0.42, 0.18], [0.7, 0.42, 0.18], [1.7, 1.1, 0.55], [1.7, 1.1, 0.55]]); }
+    for (let i = 0; i < 5; i++) { const z = cz - 8.5 + i * 4.25; B.em.quad([159.86, 1.2, z - 1.1], [159.86, 1.2, z + 1.1], [159.86, 6.5, z + 1.1], [159.86, 6.5, z - 1.1], [[0.7, 0.42, 0.18], [0.7, 0.42, 0.18], [1.7, 1.1, 0.55], [1.7, 1.1, 0.55]]); }
+    { // заливающий свет снизу по стенам, огни карниза и шпиля
+      const lo = [0.5, 0.36, 0.18], hi = [0.13, 0.1, 0.06], g4 = [lo, lo, hi, hi];
+      B.em.quad([159.93, 0.15, cz - 14], [159.93, 0.15, cz + 14], [159.93, 11.1, cz + 14], [159.93, 11.1, cz - 14], g4);
+      B.em.quad([170, 0.15, cz - 14.06], [160, 0.15, cz - 14.06], [160, 13, cz - 14.06], [170, 13, cz - 14.06], g4);
+      B.em.quad([160, 0.15, cz + 14.06], [170, 0.15, cz + 14.06], [170, 13, cz + 14.06], [160, 13, cz + 14.06], g4);
+      B.em.quad([201, 0.15, cz - 12.06], [190, 0.15, cz - 12.06], [190, 21, cz - 12.06], [201, 21, cz - 12.06], g4);
+      B.em.quad([190, 0.15, cz + 12.06], [201, 0.15, cz + 12.06], [201, 21, cz + 12.06], [190, 21, cz + 12.06], g4);
+      for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2 + 0.26; glow(cx + Math.cos(a) * 15.6, 17.3, cz + Math.sin(a) * 15.6, 1.3, [1.5, 1.0, 0.45]); }
+      glow(cx, 30.4, cz, 2.8, [2.2, 1.6, 0.8]);
+    }
     col.box(158, 201, cz - 14, cz + 14); col.box(166, 196, cz - 15, cz + 15);
     for (const [px, pz] of [[156, -30], [156, -42], [156, -18], [170, -48], [170, -12], [192, -48], [192, -12]]) pool(px, pz, 13, [0.4, 0.26, 0.12]);
     for (const z of [-44, -16]) { glow(155.5, 0.6, z, 2.2, [2.0, 1.3, 0.6]); glow(155.5, 0.6, z + 9, 2.2, [2.0, 1.3, 0.6]); }
@@ -505,6 +515,13 @@ export function buildWorld(scene) {
     }
     for (const sx of [-1, 1]) col.box(sx > 0 ? 41 : -43, sx > 0 ? 43 : -41, z - 8.6, z + 8.6, 2);
     for (const px of [-26, 0, 26]) { B.br.box(px - 1.5, px + 1.5, -3.2, -0.9, z - 6, z + 6, C(0x565a64)); col.box(px - 1.5, px + 1.5, z - 6, z + 6, 2); }
+    { // подсветка: светящаяся кромка пролёта, огни на опорах, пятна света на льду
+      const lc = z === 120 ? [1.3, 0.15, 0.1] : [0.26, 0.95, 1.15];
+      for (const s of [-1, 1]) {
+        B.brE.box(-52, 52, -0.5, -0.34, z + s * 8.64 - 0.06, z + s * 8.64 + 0.06, lc);
+        for (const px of [-26, 0, 26]) { glow(px, -1.7, z + s * 6.3, 2.0, mulc(lc, 1.3)); pool(px, z + s * 9.5, 11, mulc(lc, 0.2), -2.93); }
+      }
+    }
     if (z === 120) {
       // Bugrinsky: one big red network arch
       const red = [1.5, 0.1, 0.07], L = 50, H = 30;
@@ -517,7 +534,8 @@ export function buildWorld(scene) {
         }
       }
       for (let i = 0; i <= 6; i++) { const x = -30 + i * 10, t = 1 - (x / L) * (x / L); beam(B.brE, [x, H * t + 0.3, z - (9.2 - 5.5 * t)], [x, H * t + 0.3, z + (9.2 - 5.5 * t)], 0.3, red, 5); }
-      glow(0, H + 1.5, z, 7, [2.2, 0.2, 0.15]);
+      glow(0, H + 1.5, z, 7, [2.2, 0.2, 0.15]); pool(0, z, 30, [0.2, 0.02, 0.014], -2.93);
+      for (const s of [-1, 1]) for (let x = -40; x <= 40; x += 20) { const t = 1 - (x / L) * (x / L); glow(x, H * t + 1.2, z + s * (9.2 - 5.5 * t), 2.2, [1.9, 0.22, 0.14]); }
     } else {
       // Kommunalny: three steel arches with garlands
       const st = C(0x5f7f86);
@@ -525,6 +543,7 @@ export function buildWorld(scene) {
         const xc = -34 + a * 34, pts = [];
         for (let i = 0; i <= 12; i++) { const u = -1 + i / 6, y = 10.5 * (1 - u * u) + 0.4; pts.push(new THREE.Vector3(xc + u * 17, y, z + s * 8.4)); if (i % 2 === 0) glows.push(xc + u * 17, y + 0.5, z + s * 8.4, 1.5, 1.7, 1.25, 0.6); if (i > 0 && i < 12) beam(B.br, [xc + u * 17, y, z + s * 8.4], [xc + u * 17, 0.9, z + s * 8.4], 0.07, st, 3); }
         B.br.add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 20, 0.4, 5), new THREE.Matrix4(), st);
+        B.brE.add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(p.x, p.y + 0.48, p.z))), 20, 0.12, 4), new THREE.Matrix4(), [0.26, 0.95, 1.15]);
       }
     }
   }
