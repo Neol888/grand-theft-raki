@@ -24,6 +24,7 @@ const world = buildWorld(scene);
 const post = new Post(renderer);
 const snow = new Snow(scene, isTouch ? 3600 : 6500);
 const spray = new Spray(scene), tracks = new Tracks(scene), dyn = new DynGlow(scene);
+const fw = new Spray(scene, 900); fw.u.uScale = { value: 1 }; fw.pts.visible = false; // салют финала
 const markers = [new Marker(scene), new Marker(scene), new Marker(scene)];
 const audio = new Audio();
 const head = new THREE.SpotLight(0xfff0d8, 0, 80, 0.5, 0.8, 1.0); scene.add(head, head.target);
@@ -777,7 +778,10 @@ function finale() {
   post.mFinal.uniforms.uFlash.value = 1; if (rak) rak.visible = false; head.intensity = 0; snow.u.uHead.value = 0; markers.forEach(m => m.hide());
   const st = S.stats; let rank = RANKS[0]; for (const r of RANKS) if (S.score >= r[0]) rank = r;
   let best = 0; try { best = +(localStorage.getItem('gtr_best') || 0); if (S.score > best) localStorage.setItem('gtr_best', S.score); } catch (e) { /* ignore */ }
-  fin = { t: 0, i: 0, fw: 0, rank, best };
+  fin = { t: 0, i: 0, fw: 0, rank, best, fl: [], h0: world.hemi.intensity };
+  fin.ids = RAKI.map((q) => q.id).filter((id) => id !== S.pid); fin.ids.splice(5, 0, S.pid); fw.pts.visible = true;
+  fin.ids.forEach((id, i) => { const r = raki[id]; r.visible = true; r.rotation.set(0, -Math.PI / 2, 0); r.position.set(id === S.pid ? 154.5 : 155.9, 0.95, -38 + i * 1.6); });
+  if (rak && !rak.userData.named) { rak.userData.named = 1; rak.add(nameSprite(pname, NC[S.pid] || BY_ID[S.pid].css)); }
   const url = location.origin + location.pathname;
   const text = `🦀 Grand Theft Raki: Новосибирск\nИграл за: ${pname}\nСчёт: ${S.score} — звание ${rank[1]}\nПоручений: ${st.missions}/${st.total} · карточек Игоря: ${st.cards} из 144 · банов от модераторов: ${st.bans}${Object.keys(S.tro || {}).length ? '\nТрофеи: ' + Object.keys(S.tro).map((id) => TROPHIES[id][0]).join(', ') : ''}\n${url}`;
   $('frank').textContent = rank[1]; $('fscore').textContent = S.score + ' очк.'; $('fnote').innerHTML = esc(rank[2]) + '<br><i>' + esc(ENDING[S.pid] || '') + '</i>';
@@ -800,14 +804,29 @@ function finale() {
 }
 function updateFinal(dt) {
   fin.t += dt; const u = post.mFinal.uniforms; u.uFlash.value = Math.max(0, u.uFlash.value - dt * 1.2);
-  const a = fin.t * 0.12 + 2.6; camera.fov = baseFov; camera.position.set(176 + Math.cos(a) * 60, 22 + Math.min(fin.t, 30) * 0.7, -30 + Math.sin(a) * 60); camera.lookAt(178, 14, -30); camera.updateProjectionMatrix();
+  const T = fin.t, a = T * 0.12 + 2.6, k0 = clamp((T - 6.5) / 5.5, 0, 1), k = k0 * k0 * (3 - 2 * k0), pan = Math.sin(T * 0.42 - 1.3), L = (p, q) => p + (q - p) * k;
+  camera.fov = baseFov;
+  camera.position.set(L(143.8 - T * 0.22, 176 + Math.cos(a) * 60), L(4.6 + T * 0.12, 22 + Math.min(T, 30) * 0.7), L(-30 + pan * 3.5, -30 + Math.sin(a) * 60));
+  camera.lookAt(L(155.6, 178), L(2.0, 14), L(-30 + pan * 5.5, -30)); camera.updateProjectionMatrix();
+  fin.ids.forEach((id, i) => {
+    const r = raki[id], me = id === S.pid; animRak(r, S.time + i * 0.37, 1, (T + i * 0.7) % 3 < 1.2);
+    r.position.y = 0.95 + Math.abs(Math.sin(T * 5.2 + i * 1.7)) * (me ? 0.75 : 0.42);
+    r.rotation.y = -Math.PI / 2 + Math.sin(T * 2.3 + i) * 0.55 + (me ? Math.pow(Math.max(0, Math.sin(T * 0.8)), 10) * 6.283 : 0);
+  });
   world.setShadowCenter(176, -30);
   fin.fw -= dt; if (fin.fw <= 0 && fin.t < 40) {
     fin.fw = 0.35 + Math.random() * 0.5; const c = [[3, 0.4, 1.6], [0.4, 2.4, 3], [3, 2.2, 0.4], [0.6, 3, 1], [3, 0.6, 0.4]][Math.floor(Math.random() * 5)];
-    spray.burst(150 + Math.random() * 60, 34 + Math.random() * 22, -60 + Math.random() * 60, 60, 13, 1.7, c[0], c[1], c[2]); if (Math.random() < 0.6) audio.play('boom');
+    const bx = 154 + Math.random() * 54, by = 25 + Math.random() * 21, bz = -60 + Math.random() * 60;
+    fw.burst(bx, by, bz, 70, 15, 2.1, c[0], c[1], c[2]); if (Math.random() < 0.5) fw.burst(bx, by, bz, 28, 7, 1.6, 3, 2.8, 2.2);
+    fin.fl.push([bx, by, bz, 0.4, c]); if (Math.random() < 0.6) audio.play('boom');
   }
   for (const c of S.cars) if (c.ai && c.ai.type === 'traffic') driveTraffic(c, dt, 1e5, 1e5);
-  dyn.begin(); carGlows(); updateCollectibles(false); dyn.end();
+  dyn.begin(); carGlows(); updateCollectibles(false);
+  let fs = 0; for (const f of fin.fl) { f[3] -= dt; if (f[3] > 0) { const u = f[3] / 0.4; fs += u; dyn.add(f[0], f[1], f[2], 8 + 26 * u, f[4][0] * 0.5 * u, f[4][1] * 0.5 * u, f[4][2] * 0.5 * u); } }
+  if (fin.fl.length > 12) fin.fl = fin.fl.filter((f) => f[3] > 0);
+  world.hemi.intensity = fin.h0 * (1 + Math.min(fs, 1.2) * 0.8);
+  for (const id of fin.ids) npcGlow(raki[id]);
+  dyn.end();
   if (fin.i < FINALE.length && fin.t > 1.6 + fin.i * 0.95) { const m = FINALE[fin.i++], fc = $('fchat'); fc.appendChild(msgEl(m[0], m[1])); while (fc.children.length > 3) fc.firstChild.remove(); audio.play('msg'); }
   if (fin.i >= FINALE.length && fin.t > 2.6 + FINALE.length * 0.95 && $('fcard').classList.contains('hidden')) { const fc = $('fchat'); while (fc.children.length > 1) fc.firstChild.remove(); $('fcard').classList.remove('hidden'); audio.play('win'); }
 }
@@ -831,7 +850,7 @@ function draw(dt) {
   {
     const u = post.mFinal.uniforms; if (S.state !== 'final') u.uFlash.value = Math.max(0, u.uFlash.value - dt * 2);
     glowScale.value = rh / (2 * Math.tan(camera.fov * Math.PI / 360));
-    world.update(dt, S.time, camera); snow.u.uTime.value = S.time; snow.u.uCam.value.copy(camera.position); spray.update(S.time); markers.forEach(m => m.update(S.time));
+    world.update(dt, S.time, camera); snow.u.uTime.value = S.time; snow.u.uCam.value.copy(camera.position); spray.update(S.time); if (fw.pts.visible) { fw.u.uScale.value = glowScale.value * 6; fw.update(S.time); } markers.forEach(m => m.update(S.time));
     audio.tick(S.state === 'play' && S.mode === 'car' ? clamp(S.car.speed / 32, 0, 1) : 0, S.state === 'play' && S.mode === 'car' ? S.car.slip : 0, S.state === 'play' && S.mode === 'car', S.wanted > 0, S.car ? S.car.kind : 'sedan');
     post.render(scene, camera, S.time);
   }
