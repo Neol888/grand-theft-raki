@@ -80,6 +80,7 @@ const QLT = [
 const QT = isTouch ? QLT : QL;
 let ql = QS.has('q') ? clamp(+QS.get('q') || 0, 0, QT.length - 1) : (isTouch ? 1 : 0), rh = 720, qlSaid = false, upTried = false, good = 0;
 const ql0 = ql;
+let fwT = 0; const FWC = [[3, 0.4, 1.6], [0.4, 2.4, 3], [3, 2.2, 0.4], [0.6, 3, 1], [3, 0.6, 0.4]];
 let WX = 0; // погода партии: 0 обычный снег, 1 ясная ночь, 2 метель
 const WXN = [
   null,
@@ -421,7 +422,9 @@ function horn() {
   if (S.state !== 'play' || S.time < hornT) return; hornT = S.time + 0.7;
   audio.horn(S.pid); bubble('<b>' + esc(pname) + ':</b> ' + esc(HORN[S.pid] || 'Би-бип'), 1800);
   for (const c of S.cars) if (c.ai && c.ai.type === 'traffic' && Math.hypot(c.e.x - P.x, c.e.z - P.z) < 16) c.stun = 1.3;
-  for (const n of S.npcs) if (Math.hypot(n.x - P.x, n.z - P.z) < 14) n.talk = 1.6;
+  for (const n of S.npcs) if (Math.hypot(n.x - P.x, n.z - P.z) < 14) { n.talk = 1.6; if (!n.y) n.vy = 6; }
+  for (const p of PEDS) if (p.y === 0 && Math.hypot(p.ax + (p.bx - p.ax) * p.u + p.ox - P.x, p.az + (p.bz - p.az) * p.u + p.oz - P.z) < 13) { p.vy = 6; p.jx = p.jz = 0; }
+  for (const p of EXTRAS) if (p.y === 0 && !p.fly && Math.hypot(p.x + p.ox - P.x, p.z + p.oz - P.z) < 13) { p.vy = 6; p.jx = p.jz = 0; if (p.kind === 'queue' && !S.flags.exq3) { S.flags.exq3 = 1; sayQ([['sys', 'Очередь: «Не сигналь, быстрее не станет»']]); } }
   S.horns = (S.horns || 0) + 1; if (S.horns >= 10) trophy('horn');
 }
 document.addEventListener('pointerdown', (e) => {
@@ -578,6 +581,7 @@ let speakT = 0;
 function updateNPCs(dt) {
   for (const n of S.npcs) {
     const d = Math.hypot(P.x - n.x, P.z - n.z); n.cool -= dt; n.talk -= dt;
+    if (n.vy || n.y > 0) { n.vy -= 20 * dt; n.y = Math.max(0, (n.y || 0) + n.vy * dt); if (n.y === 0) n.vy = 0; n.rak.position.y = 0.15 + n.y; }
     if (d < 90) {
       animRak(n.rak, S.time, 0, n.talk > 0); npcGlow(n.rak);
       if (d < 16) n.rak.rotation.y += angDiff(n.rak.rotation.y, Math.atan2(P.x - n.x, P.z - n.z)) * damp(5, dt);
@@ -786,7 +790,11 @@ function updateCamera(dt) {
 
 // ---------- play loop ----------
 function updatePlay(dt) {
-  S.t += dt; S.left -= dt; if (S.t > 9) trophy('what'); if (S.wxSay && S.t > 13 && !S.modal) { sayQ(S.wxSay); S.wxSay = null; trophy(S.runN === 2 ? 'again' : 'x20'); }
+  S.t += dt; S.left -= dt; if (S.left < 11 && S.left > 0) { // кто-то не дотерпел до полуночи
+    if (!S.flags.fw) { S.flags.fw = 1; fw.pts.visible = true; sayQ([['sys', 'Кто-то не дотерпел и уже запускает салют']]); }
+    fwT -= dt; if (fwT <= 0) { fwT = 0.4 + Math.random() * 0.5; const c = FWC[Math.floor(Math.random() * FWC.length)]; fw.burst(P.x + (Math.random() - 0.5) * 150, 38 + Math.random() * 24, P.z + (Math.random() - 0.5) * 150, 60, 15, 2.0, c[0], c[1], c[2]); if (Math.random() < 0.5) audio.play('boom'); }
+  }
+  if (S.t > 9) trophy('what'); if (S.wxSay && S.t > 13 && !S.modal) { sayQ(S.wxSay); S.wxSay = null; trophy(S.runN === 2 ? 'again' : 'x20'); }
   updateGags(dt);
   updatePlayer(dt);
   for (const c of S.cars) if (c.ai && c.ai.type === 'traffic') driveTraffic(c, dt, P.x, P.z);
@@ -859,7 +867,7 @@ function finale() {
   let best = 0; try { best = +(localStorage.getItem('gtr_best') || 0); if (S.score > best) localStorage.setItem('gtr_best', S.score); } catch (e) { /* ignore */ }
   fin = { t: 0, i: 0, fw: 0, rank, best, fl: [], h0: world.hemi.intensity };
   fin.ids = RAKI.map((q) => q.id).filter((id) => id !== S.pid); fin.ids.splice(5, 0, S.pid); fw.pts.visible = true; for (const c of S.cars) c.g.visible = true;
-  fin.ids.forEach((id, i) => { const r = raki[id]; r.visible = true; r.rotation.set(0, -Math.PI / 2, 0); r.position.set(id === S.pid ? 154.5 : 155.9, 0.95, -38 + i * 1.6); });
+  fin.ids.forEach((id, i) => { const r = raki[id]; r.visible = true; r.rotation.set(0, -Math.PI / 2, 0); r.position.set(id === S.pid ? 155.45 : 156.8, 0.95, -38 + i * 1.6); });
   if (rak && !rak.userData.named) { rak.userData.named = 1; const ns = nameSprite(pname, NC[S.pid] || BY_ID[S.pid].css); ns.position.y += 0.6; rak.add(ns); }
   const url = location.origin + location.pathname;
   const text = `🦀 Grand Theft Raki: Новосибирск\nИграл за: ${pname}\nСчёт: ${S.score} — звание ${rank[1]}\nПоручений: ${st.missions}/${st.total} · карточек Игоря: ${st.cards} из 144 · банов от модераторов: ${st.bans}${Object.keys(S.tro || {}).length ? '\nТрофеи: ' + Object.keys(S.tro).map((id) => TROPHIES[id][0]).join(', ') : ''}\n${url}`;
@@ -889,7 +897,7 @@ function updateFinal(dt) {
   camera.lookAt(L(155.6, 178), L(4.4, 14), L(-30 + pan * 5.5, -30)); camera.updateProjectionMatrix();
   fin.ids.forEach((id, i) => {
     const r = raki[id], me = id === S.pid; animRak(r, S.time + i * 0.37, 1, (T + i * 0.7) % 3 < 1.2);
-    r.position.y = 0.95 + Math.abs(Math.sin(T * 5.2 + i * 1.7)) * (me ? 0.75 : 0.42);
+    r.position.y = (me ? 0.7 : 0.97) + Math.abs(Math.sin(T * 5.2 + i * 1.7)) * (me ? 0.75 : 0.42);
     r.rotation.y = -Math.PI / 2 + Math.sin(T * 2.3 + i) * 0.55 + (me ? Math.pow(Math.max(0, Math.sin(T * 0.8)), 10) * 6.283 : 0);
   });
   world.setShadowCenter(176, -30);
