@@ -159,7 +159,7 @@ function updateMenu(dt) {
   camera.lookAt(MCAM[2] - mdz / ml * sh, port ? -0.7 : short ? 1.25 : 0.2, MCAM[3] + mdx / ml * sh); camera.fov = port ? 48 : short ? 30 : 44; camera.updateProjectionMatrix();
   for (const c of S.cars) if (c.ai) driveTraffic(c, dt, 1e5, 1e5);
   world.setShadowCenter(150, -30);
-  updatePeds(dt);
+  updatePeds(dt); updateExtras(dt);
   dyn.begin(); carGlows(); npcGlow(r); dyn.end();
 }
 
@@ -268,6 +268,52 @@ function updatePeds(dt) {
   pedMesh.instanceMatrix.needsUpdate = true;
 }
 
+// ---------- сценки в точках назначения ----------
+// Те же фигурки, что у прохожих, но стоят на месте: очередь за диском, типы у бочки, инсайдер со сливом, мастер на Ватутина.
+const EXTRAS = []; let exMesh = null, exIns = null;
+const LEAKS = [[POI.leak1[0] + 1.8, POI.leak1[1] + 1.2], [POI.leak2[0] + 1.8, POI.leak2[1] + 1.2], [POI.leak3[0] - 2.4, POI.leak3[1] + 1.6]];
+(function buildExtras() {
+  const add = (x, z, h, col, kind, k = 0) => { const p = { x, z, h, col, kind, k, y: 0, vy: 0, ox: 0, oz: 0, jx: 0, jz: 0, ph: EXTRAS.length * 1.7, li: 0, fly: 0, to: 0 }; EXTRAS.push(p); return p; };
+  for (let i = 0; i < 5; i++) add(221.3 + (i % 2) * 0.4, 92.6 + i * 1.25, Math.PI, [0xc8402e, 0xe07a4a, 0x8a4ab0, 0x3a8ab0, 0xd8623a][i], 'queue', i);
+  const f = world.fire; if (f) for (const [dx, dz] of [[-1.5, 0.4], [1.1, -1.1]]) add(f[0] + dx, f[2] + dz, Math.atan2(-dx, -dz), 0x30323c, 'tip');
+  exIns = add(LEAKS[0][0], LEAKS[0][1], 0.6, 0x1d2029, 'ins');
+  add(-236.2, 169.6, 0, 0x2a4a7a, 'master');
+  exMesh = new THREE.InstancedMesh(pedMesh.geometry, world.mPL, EXTRAS.length); exMesh.frustumCulled = false; scene.add(exMesh);
+  EXTRAS.forEach((p, i) => { p.gy = surface({ x: p.x, z: p.z, y: 2 }); exMesh.setColorAt(i, new THREE.Color(p.col)); });
+})();
+const EXSAY = {
+  queue: [['sys', 'Очередь за диском в «ТехноРак». Крайний занял ещё на первом трейлере'], ['pasha', 'Ну обещают без переносов']],
+  tip: [['sys', 'Типы греются у бочки. Чек не дают, гарантия — честное слово']],
+  ins: [['sys', 'Инсайдер: «Перенесут. Или нет. Информация платная»']],
+  master: [['sys', 'Мастер на Ватутина: «Чистка — час. Дорога сюда — два»'], ['artem', 'Ватутина далековато)))']],
+};
+function updateExtras(dt) {
+  const play = S.state === 'play', car = play && S.mode === 'car' ? S.car : null, T = S.time, Mi = play ? S.mission : null;
+  if (play) { // инсайдер переезжает вместе со сливом
+    const li = Mi && Mi.id === 'pasha' ? Math.min(Mi.si, 2) : S.done && S.done.pasha ? 2 : exIns.li;
+    if (li !== exIns.li && !exIns.fly) { exIns.fly = 1; exIns.to = li; exIns.vy = 17; exIns.jx = exIns.jz = 0; }
+    if (exIns.fly && exIns.vy <= 0) { exIns.x = LEAKS[exIns.to][0]; exIns.z = LEAKS[exIns.to][1]; exIns.ox = exIns.oz = 0; exIns.li = exIns.to; exIns.fly = 0; }
+  }
+  let tipNear = false;
+  for (let i = 0; i < EXTRAS.length; i++) {
+    const p = EXTRAS[i], x = p.x + p.ox, z = p.z + p.oz, dx = x - P.x, dz = z - P.z, d = play ? Math.hypot(dx, dz) : 99;
+    if (d < 11 && !S.flags['ex' + p.kind] && !(p.kind === 'ins' && Mi && Mi.id === 'pasha')) { S.flags['ex' + p.kind] = 1; sayQ(EXSAY[p.kind]); }
+    if (car && p.y === 0 && car.speed > 3 && d < 5.5) {
+      p.vy = 7; p.jx = dx / (d || 1) * 5; p.jz = dz / (d || 1) * 5; if (S.time > pedSq) { pedSq = S.time + 0.7; audio.play('squeak'); }
+      if (p.kind === 'queue') { trophy('queue'); if (!S.flags.exq2) { S.flags.exq2 = 1; sayQ([['sys', 'Очередь: «Вас тут не стояло!»']]); } }
+    }
+    if (p.kind === 'tip' && !car && d < 3.4) tipNear = true;
+    if (p.vy !== 0 || p.y > 0) { p.vy -= 22 * dt; p.y += p.vy * dt; p.ox += p.jx * dt; p.oz += p.jz * dt; if (p.y <= 0) { p.y = 0; p.vy = 0; } }
+    else { const k = Math.min(1, dt * 0.7); p.ox -= p.ox * k; p.oz -= p.oz * k; }
+    let hop = Math.abs(Math.sin(T * 1.6 + p.ph)) * 0.03, yaw = p.h + Math.sin(T * 0.7 + p.ph) * 0.18;
+    if (p.kind === 'queue') { const w = (T * 0.9 - p.k * 0.3) % 7; if (w > 0 && w < 0.5) hop = Math.sin(w * 2 * Math.PI) * 0.4; }
+    else if (d < 12) yaw = Math.atan2(-dx, -dz);
+    _q.setFromEuler(_eu.set(p.y > 0.5 ? T * 8 : 0, yaw, Math.sin(T * 2 + p.ph) * 0.05)); _v.set(x, p.gy + 0.15 + p.y + hop, z); _sc.setScalar(1); _m4.compose(_v, _q, _sc); exMesh.setMatrixAt(i, _m4);
+  }
+  if (play) { S.tipT = tipNear ? (S.tipT || 0) + dt : 0; if (S.tipT > 2) trophy('tipy'); }
+  exMesh.instanceMatrix.needsUpdate = true;
+}
+
 // ---------- cars ----------
 const CARCOL = [0x8a2a2a, 0x2a4a8a, 0x6a6f78, 0x1f2a36, 0xcfd3da, 0x2f6a4a, 0x7a5a2a, 0x3a3a3a, 0x8a8f2a, 0x5a2a6a];
 for (let i = 0; i < 11; i++) {
@@ -357,7 +403,7 @@ document.addEventListener('pointerdown', (e) => {
   if (S.state === 'play') { if (!S.flags.voice) { S.flags.voice = 1; sayQ([['sys', 'Ты послушал голосовое Макса. Первый за всю историю чата']]); } trophy('voice'); }
 });
 // трофеи: очков не дают, только повод посмеяться; оформление своё
-const TROPHIES = { what: ['Что это?', 'начал партию'], ice: ['Руки в рыбе', 'выехал на лёд Оби'], speed: ['11.1.4', 'разогнался до 111,4 км/ч'], rev: ['Всё так, только наоборот', 'четыре секунды ехал задом'],
+const TROPHIES = { what: ['Что это?', 'начал партию'], queue: ['Вас тут не стояло', 'разогнал очередь за диском'], tipy: ['Свой у типов', 'постоял с типами у бочки'], ice: ['Руки в рыбе', 'выехал на лёд Оби'], speed: ['11.1.4', 'разогнался до 111,4 км/ч'], rev: ['Всё так, только наоборот', 'четыре секунды ехал задом'],
   steal: ['Боже, храни пиратов', 'угнал машину'], voice: ['Никто не слушает', 'послушал голосовое Макса'], crash: ['Самый кайф в разрушениях', 'въехал как следует'], zap: ['В аномалии не лезь', 'залез в аномалию'],
   esc: ['Лавочку не прикрыли', 'ушёл от модераторов'], ban: ['П2 или П3?', 'получил бан'], cards: ['144 из 144', 'собрал все карточки Игоря'], radio: ['Меломан', 'послушал все одиннадцать станций'],
   horn: ['Очень плохое сообщение', 'посигналил десять раз'], slow: ['Потерпи чуть-чуть', 'перетерпел тягомотное начало'], bati: ['Батя в здании', 'успел к Мише вовремя'], dance: ['Закапываемся', 'станцевал пешком'], beam: ['BeamNG', 'снёс десять предметов'] };
@@ -714,7 +760,7 @@ function updatePlay(dt) {
   updatePlayer(dt);
   for (const c of S.cars) if (c.ai && c.ai.type === 'traffic') driveTraffic(c, dt, P.x, P.z);
   dyn.begin();
-  updateWanted(dt); updateNPCs(dt); updateMission(dt); updateCollectibles(true); updateProps(dt); updatePeds(dt); carGlows();
+  updateWanted(dt); updateNPCs(dt); updateMission(dt); updateCollectibles(true); updateProps(dt); updatePeds(dt); updateExtras(dt); carGlows();
   if (world.fire) { const f = world.fire, fl = 0.7 + Math.random() * 0.5; dyn.add(f[0], f[1], f[2], 4.5 * fl, 2.4 * fl, 0.9 * fl, 0.2); if (Math.random() < 0.3) spray.emit(f[0], f[1], f[2], (Math.random() - 0.5) * 1.5, 3 + Math.random() * 3, (Math.random() - 0.5) * 1.5, 1.2, 2.5, 0.9, 0.2); }
   if (S.mission && S.mission.id === 'kos' && S.mission.si <= 1) { const a = POI.artifact; dyn.add(a[0], 1.4 + Math.sin(S.time * 3) * 0.2, a[1], 5, 2.6, 1.3, 0.2); }
   for (const tw of world.towers) dyn.add(tw.x, tw.h + 0.6, tw.z, 4, (S.time * 2 | 0) % 2 ? 2.2 : 0.3, 0.2, 0.15);
